@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constructeur et visualisation des données de l'API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .api-url {
+            font-family: monospace;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        tfoot td {
+            background-color: #e0e0e0;
+            font-weight: bold;
+        }
+        .selection-buttons {
+            margin-bottom: 10px;
+        }
+        .export-button {
+            background-color: #2196F3;
+            margin-top: 10px;
+        }
+        .export-button:hover {
+            background-color: #0b7dda;
+        }
+        .field-info {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .field-info h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .column-header {
+            background-color: #e3f2fd !important;
+        }
+        .row-header {
+            background-color: #e8f5e9 !important;
+        }
+        .clickable {
+            color: #0066cc;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .clickable:hover {
+            color: #004499;
+        }
+    </style>
+</head>
+<body>
+    <h1>Constructeur et visualisation des données de l'API HAL utilisant les <a href="https://api.archives-ouvertes.fr/docs/search/?#facet" target="_blank">facettes avec pivots</a> </h1>
+    <P>Génère un tableau avec valeurs cliquables.<br />
+        Exemple : un tableau où on trouve 4 dépôts ayant pour type de document "OTHER" dans la colonne année de publication 2025. <br />
+        En cliquant sur "4", on affiche le résultat d'une api où doctype_s:OTHER et publicationDateY_i:2025.
+    </P>
+    <div class="form-group">
+        <label for="apiUrl">URL complète de l'API (optionnel) :</label>
+        <input type="text" id="apiUrl" placeholder="Exemple : https://api.archives-ouvertes.fr/search/?q=collCode_s:INRIA&rows=0&indent=true&facet=true&facet.pivot=publicationDateY_i,submitType_s&facet.sort=publicationDateY_i&wt=json">
+        <button onclick="fetchDataFromInput()">Charger les données</button>
+    </div>
+
+    <h2>OU</h2>
+
+    <div class="form-group">
+        <label for="collection">Nom de la collection (exemple : INRIA) :</label>
+        <input type="text" id="collection" placeholder="Exemple : IFIP">
+    </div>
+
+    <div class="form-group">
+        <label for="rowField">Champ pour les lignes (exemple : submitType_s, docType_s)&nbsp;<a href="https://api.archives-ouvertes.fr/docs/search/?schema=fields#fields" target="_blank">voir liste des champs de la doc API</a> :</label>
+        <input type="text" id="rowField" placeholder="Exemple : submitType_s">
+    </div>
+
+    <div class="form-group">
+        <label for="columnField">Champ pour les colonnes (exemple : publicationDateY_i)&nbsp;<a href="https://api.archives-ouvertes.fr/docs/search/?schema=fields#fields" target="_blank">voir liste des champs de la doc API</a> :</label>
+        <input type="text" id="columnField" placeholder="Exemple : publicationDateY_i">
+    </div>
+
+    <button onclick="buildAndFetchData()">Construire l'URL et charger les données</button>
+
+    <div class="form-group">
+        <label>URL de l'API générée :</label>
+        <div id="generatedUrl" class="api-url"></div>
+    </div>
+
+    <div id="fieldInfo" class="field-info" style="display: none;">
+        <h3>Structure du tableau</h3>
+        <p><strong>Lignes :</strong> <span id="rowFieldInfo"></span></p>
+        <p><strong>Colonnes :</strong> <span id="columnFieldInfo"></span></p>
+    </div>
+
+    <div id="error" class="error"></div>
+
+    <div class="selection-buttons">
+        <button onclick="selectAll(true)">Totaux : tout cocher</button>
+        <button onclick="selectAll(false)">Totaux : tout décocher</button>
+        <button onclick="exportToCSV()" class="export-button">Exporter vers CSV</button>
+    </div>
+
+    <div class="container" id="tableContainer">
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>Sélection</th>
+                    <th id="pivotFieldHeader" class="row-header">Type</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2">Total (lignes sélectionnées)</td>
+                </tr>
+            </tfoot>
+        </table>
+        <i>Conçu par Inria (Information et édition scientifiques) avec l'Assistant Numérique</i>
+    </div>
+
+    <script>
+        let data = {};
+        let columns = [];
+        let rows = [];
+        let rowData = {};
+        let rowFieldName = "";
+        let columnFieldName = "";
+        let currentApiUrl = "";
+        let baseQuery = "";
+        let facetPivot = "";
+
+        function scrollToTable() {
+            const tableContainer = document.getElementById('tableContainer');
+            tableContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function fetchDataFromInput() {
+            const url = document.getElementById('apiUrl').value.trim();
+            if (!url) {
+                document.getElementById('error').textContent = "Veuillez entrer une URL.";
+                return;
+            }
+
+            document.getElementById('error').textContent = "";
+            currentApiUrl = url;
+
+            // Extraire les paramètres de base
+            extractBaseParameters(url);
+
+            fetchData(url);
+        }
+
+        function extractBaseParameters(url) {
+            try {
+                const urlObj = new URL(url);
+                const params = new URLSearchParams(urlObj.search);
+
+                // Extraire le paramètre q
+                baseQuery = params.get('q') || '';
+
+                // Extraire le facet.pivot pour connaître les champs
+                facetPivot = params.get('facet.pivot') || '';
+                if (facetPivot) {
+                    const [colField, rowField] = facetPivot.split(',');
+                    columnFieldName = colField;
+                    rowFieldName = rowField;
+                }
+            } catch (e) {
+                console.error("Erreur lors de l'extraction des paramètres:", e);
+                baseQuery = '';
+                facetPivot = '';
+            }
+        }
+
+        function buildAndFetchData() {
+            const collection = document.getElementById('collection').value.trim();
+            const rowField = document.getElementById('rowField').value.trim();
+            const columnField = document.getElementById('columnField').value.trim();
+            const errorDiv = document.getElementById('error');
+
+            if (!collection || !rowField || !columnField) {
+                errorDiv.textContent = "Veuillez remplir tous les champs.";
+                return;
+            }
+
+            // Construire l'URL de l'API
+            const baseUrl = "https://api.archives-ouvertes.fr/search/";
+            const queryParams = new URLSearchParams();
+            queryParams.append('q', `collCode_s:${collection}`);
+            queryParams.append('rows', '0');
+            queryParams.append('indent', 'true');
+            queryParams.append('facet', 'true');
+            queryParams.append('facet.pivot', `${columnField},${rowField}`);
+            queryParams.append('facet.sort', columnField);
+            queryParams.append('wt', 'json');
+
+            const apiUrl = `${baseUrl}?${queryParams.toString()}`;
+            document.getElementById('generatedUrl').textContent = apiUrl;
+            currentApiUrl = apiUrl;
+
+            // Stocker les paramètres de base pour les liens cliquables
+            baseQuery = `collCode_s:${collection}`;
+            columnFieldName = columnField;
+            rowFieldName = rowField;
+            facetPivot = `${columnField},${rowField}`;
+
+            // Charger les données
+            fetchData(apiUrl);
+        }
+
+        async function fetchData(apiUrl) {
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                data = await response.json();
+                processData();
+                scrollToTable();
+            } catch (error) {
+                document.getElementById('error').textContent = `Erreur: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        function createClickableCell(value, rowValue, colValue) {
+            const cell = document.createElement('td');
+
+            // Si la valeur est 0, on ne la rend pas cliquable
+            if (value === 0 || !value) {
+                cell.textContent = '0';
+                return cell;
+            }
+
+            const link = document.createElement('a');
+            link.textContent = value;
+            link.className = 'clickable';
+            link.href = '#';
+
+            // Construire l'URL pour la requête
+            const urlObj = new URL("https://api.archives-ouvertes.fr/search/");
+
+            // Ajouter le paramètre q de base
+            if (baseQuery) {
+                urlObj.searchParams.append('q', baseQuery);
+            }
+
+            // Ajouter les filtres pour la colonne et la ligne
+            if (columnFieldName && colValue) {
+                urlObj.searchParams.append('fq', `${columnFieldName}:"${colValue}"`);
+            }
+            if (rowFieldName && rowValue) {
+                urlObj.searchParams.append('fq', `${rowFieldName}:"${rowValue}"`);
+            }
+
+            // Ajouter rows=1000
+            urlObj.searchParams.append('rows', '1000');
+
+            link.onclick = function(e) {
+                e.preventDefault();
+                window.open(urlObj.toString(), '_blank');
+            };
+
+            cell.appendChild(link);
+            return cell;
+        }
+
+        function processData() {
+            const table = document.getElementById('dataTable');
+            const tbody = table.querySelector('tbody');
+            const tfoot = table.querySelector('tfoot');
+            const pivotFieldHeader = document.getElementById('pivotFieldHeader');
+            const fieldInfo = document.getElementById('fieldInfo');
+            const rowFieldInfo = document.getElementById('rowFieldInfo');
+            const columnFieldInfo = document.getElementById('columnFieldInfo');
+
+            // Clear previous data
+            tbody.innerHTML = '';
+            tfoot.innerHTML = '<tr><td colspan="2">Total (lignes sélectionnées)</td></tr>';
+            columns = [];
+            rows = [];
+            rowData = {};
+
+            // Extract facet data
+            const facetKey = Object.keys(data.facet_counts?.facet_pivot || {})[0];
+            if (!facetKey) {
+                document.getElementById('error').textContent = "Aucune donnée de facette trouvée.";
+                return;
+            }
+
+            // Si les noms des champs n'ont pas été définis via le formulaire,
+            // les extraire de la clé de facette
+            if (!columnFieldName || !rowFieldName) {
+                const [colField, rowField] = facetKey.split(',');
+                columnFieldName = colField;
+                rowFieldName = rowField;
+            }
+
+            // Afficher les informations sur les champs
+            rowFieldInfo.textContent = rowFieldName;
+            columnFieldInfo.textContent = columnFieldName;
+            fieldInfo.style.display = 'block';
+
+            const facetData = data.facet_counts.facet_pivot[facetKey];
+
+            // Build data structure
+            facetData.forEach(colEntry => {
+                const colValue = colEntry.value;
+                columns.push(colValue);
+
+                colEntry.pivot?.forEach(rowEntry => {
+                    const rowValue = rowEntry.value;
+                    if (!rows.includes(rowValue)) rows.push(rowValue);
+                    if (!rowData[rowValue]) rowData[rowValue] = {};
+                    rowData[rowValue][colValue] = parseInt(rowEntry.count) || 0;
+                });
+            });
+
+            // Sort columns (try numeric sort first)
+            columns.sort((a, b) => {
+                const numA = parseFloat(a);
+                const numB = parseFloat(b);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return a.localeCompare(b);
+            });
+
+            // Build table header
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = '<th>Sélection</th><th class="row-header">' + rowFieldName + '</th>';
+
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                th.className = "column-header";
+                headerRow.appendChild(th);
+            });
+
+            table.querySelector('thead').innerHTML = '';
+            table.querySelector('thead').appendChild(headerRow);
+
+            // Add total row to footer
+            const totalRow = document.createElement('tr');
+            totalRow.innerHTML = '<td colspan="2">Total (lignes sélectionnées)</td>';
+            columns.forEach(col => {
+                const td = document.createElement('td');
+                td.id = `total-${col}`;
+                td.textContent = '0';
+                totalRow.appendChild(td);
+            });
+            tfoot.appendChild(totalRow);
+
+            // Build table rows
+            rows.sort().forEach(row => {
+                const tr = document.createElement('tr');
+
+                // Checkbox cell
+                const tdCheckbox = document.createElement('td');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `row-${row}`;
+                checkbox.onchange = updateTotals;
+                tdCheckbox.appendChild(checkbox);
+                tr.appendChild(tdCheckbox);
+
+                // Row label cell
+                const tdRow = document.createElement('td');
+                tdRow.textContent = row;
+                tdRow.className = "row-header";
+                tr.appendChild(tdRow);
+
+                // Data cells
+                columns.forEach(col => {
+                    const value = rowData[row][col] || 0;
+                    const td = createClickableCell(value, row, col);
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateTotals() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+
+            // Reset all totals
+            columns.forEach(col => {
+                document.getElementById(`total-${col}`).textContent = '0';
+            });
+
+            // Calculate new totals
+            checkboxes.forEach(checkbox => {
+                const row = checkbox.id.replace('row-', '');
+                columns.forEach(col => {
+                    const value = rowData[row][col] || 0;
+                    const totalCell = document.getElementById(`total-${col}`);
+                    const currentTotal = parseInt(totalCell.textContent) || 0;
+                    totalCell.textContent = currentTotal + value;
+                });
+            });
+        }
+
+        function selectAll(select) {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = select;
+            });
+            updateTotals();
+        }
+
+        function exportToCSV() {
+            if (rows.length === 0) {
+                alert("Aucune donnée à exporter. Veuillez d'abord charger des données.");
+                return;
+            }
+
+            // Préparer les données pour l'export CSV
+            let csvContent = "";
+
+            // Ajouter l'en-tête
+            const headerRow = ["Type", ...columns];
+            csvContent += headerRow.join(";") + "\r\n";
+
+            // Ajouter les données des lignes
+            rows.sort().forEach(row => {
+                const rowDataArray = [row, ...columns.map(col => rowData[row][col] || 0)];
+                csvContent += rowDataArray.join(";") + "\r\n";
+            });
+
+            // Ajouter les totaux
+            const totalRow = ["Total"];
+            columns.forEach(col => {
+                const totalCell = document.getElementById(`total-${col}`);
+                totalRow.push(totalCell ? totalCell.textContent : '0');
+            });
+            csvContent += totalRow.join(";") + "\r\n";
+
+            // Créer un lien de téléchargement pour le fichier CSV
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", "données_exportées.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
