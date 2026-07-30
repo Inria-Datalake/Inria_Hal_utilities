@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>OpenAlex → Métadonnées Inria</title>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+<style>
+
+body{
+    font-family: Arial, sans-serif;
+    margin:20px;
+}
+
+#pasteZone{
+    border:2px solid #666;
+    min-height:180px;
+    padding:10px;
+    margin-bottom:15px;
+}
+
+button{
+    padding:8px 15px;
+    margin-right:10px;
+}
+
+table{
+    border-collapse:collapse;
+    width:100%;
+    margin-top:20px;
+    table-layout: fixed;
+}
+
+th,td{
+    border:1px solid #ccc;
+    padding:6px;
+    vertical-align:top;
+    width:120px;
+    word-wrap:break-word;
+    overflow-wrap:break-word;
+}
+
+th{
+    background:#f0f0f0;
+}
+
+td{
+    white-space: normal;
+}
+
+#status{
+    margin-top:10px;
+    font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Analyse OpenAlex</h1>
+
+<p>Saisir une API OpenAlex :</p>
+
+<input
+    id="apiInput"
+    type="text"
+    style="width:100%; padding:8px;"
+    placeholder="https://api.openalex.org/works?filter=..."
+>
+<p>Collection HAL à vérifier (optionnel) :</p>
+
+<input
+    id="halCollectionInput"
+    type="text"
+    style="width:300px; padding:8px;"
+    placeholder="Ex: INRIA"
+>
+<p>
+Ou Copiez l'email OpenAlex puis collez-le dans la zone ci-dessous.
+Ou copiez une liste de Work ID ci-dessous.
+</p>
+
+<div id="pasteZone" contenteditable="true"></div>
+
+<button id="analyseBtn">Analyser</button>
+
+
+<button id="halBtn" style="display:none;">
+    Rechercher dans HAL (DOI ou Titre)
+</button>
+
+<button id="exportBtn" style="display:none;">
+    Exporter Excel
+</button>
+
+<button
+    id="exportCheckBtn"
+    style="display:none;"
+>
+    Exporter Excel (uniquement doi absent de HAL ou référence absente de HAL))
+</button>
+
+<div id="status"></div>
+
+<table id="resultsTable">
+
+<thead>
+<tr>
+    <th>Titre</th>
+    <th>OpenAlex</th>
+    <th>DOI</th>
+    <th>PDF (si best_oa_location n'est pas null)</th>
+
+    <th>Année</th>
+    <th>Source</th>
+    <th>Type</th>
+    <th>Auteurs</th>
+    <th>Institutions</th>
+    <th>Equipe(s) Inria dans OpenAlex</th>
+    <th>Centre(s) Inria dans OpenAlex</th>
+    <th>HAL url</th>
+    <th>Trouvé dans HAL par</th>
+    <th>Collection demandée trouvée ?</th>
+</tr>
+</thead>
+
+<tbody></tbody>
+
+</table>
+
+<script>
+
+//====================================================
+// Mapping ROR Inria
+//====================================================
+
+const rorMapping = {
+    "https://ror.org/059213d70": {
+        "acronyme": "DATASHAPE",
+        "centre": "Sophia, Saclay (UPS)"
+    },
+    "None": {
+        "acronyme": "SHACRA",
+        "centre": "Lille, Nancy"
+    },
+    "https://ror.org/02b3vs478": {
+        "acronyme": "PRIVATICS",
+        "centre": "Grenoble, Lyon"
+    },
+    "https://ror.org/02s3zbq77": {
+        "acronyme": "QINFO",
+        "centre": "Grenoble, Lyon"
+    },
+    "https://ror.org/04z4sqq49": {
+        "acronyme": "CHROMA",
+        "centre": "Grenoble, Lyon"
+    },
+    "https://ror.org/02wpx0e31": {
+        "acronyme": "ARAMIS",
+        "centre": "Paris(sorb)"
+    },
+    "https://ror.org/04e2h0037": {
+        "acronyme": "QUANTIC",
+        "centre": "Paris(sorb)"
+    },
+    "https://ror.org/05fg1yv24": {
+        "acronyme": "CaGE",
+        "centre": "Paris(sorb)"
+    },
+    "https://ror.org/051dcvw72": {
+        "acronyme": "ANGE",
+        "centre": "Paris(sorb)"
+    },
+    "https://ror.org/04dpcfm57": {
+        "acronyme": "ALPINES",
+        "centre": "Paris(sorb)"
+    },
+    "https://ror.org/04t1xhf26": {
+        "acronyme": "COMMEDIA",
+        "centre": "Paris(sorb)"
+    },
+    "https://ror.org/01rrvyp50": {
+        "acronyme": "OURAGAN",
+        "centre": "Paris(sorb)"
+    },
+    "https://ror.org/05d35hp70": {
+        "acronyme": "PARMA",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/03m3czb09": {
+        "acronyme": "BOOST",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/02akzv132": {
+        "acronyme": "MUSCA",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/02yyddy74": {
+        "acronyme": "PETRUS",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/01z2f0n71": {
+        "acronyme": "AVIZ",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/037zfay27": {
+        "acronyme": "EX-SITU",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/00jy6y646": {
+        "acronyme": "ILDA",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/00tpxnv37": {
+        "acronyme": "OPIS",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/042s1r231": {
+        "acronyme": "QuaCS",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/030627c87": {
+        "acronyme": "DISCO",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/028m5h544": {
+        "acronyme": "TOCCATA",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/031y5kf09": {
+        "acronyme": "TAU",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/0305gxg06": {
+        "acronyme": "DEDUCTEAM",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/00dfknt61": {
+        "acronyme": "MIND",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/01vxs7536": {
+        "acronyme": "GRACE",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/05b2jnz57": {
+        "acronyme": "BENAGIL",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/04pkmtd21": {
+        "acronyme": "GEOMERIX",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/03gvm2667": {
+        "acronyme": "POEMS",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/04fvec703": {
+        "acronyme": "TROPICAL",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/025n6m978": {
+        "acronyme": "MERGE",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/054a4nn03": {
+        "acronyme": "CEDAR",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/007h9pt55": {
+        "acronyme": "COMETE",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/05nyav747": {
+        "acronyme": "IDEFIX",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/05xtj5718": {
+        "acronyme": "M3DISIM",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/003m5dy43": {
+        "acronyme": "ASCII",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/02e6ym289": {
+        "acronyme": "RANDOPT",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/038tm0s98": {
+        "acronyme": "QURIOSITY",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/016sv6m22": {
+        "acronyme": "PARTOUT",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/04wgfew19": {
+        "acronyme": "PLATON",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/03jqma326": {
+        "acronyme": "FAIRPLAY",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/00fk7fp57": {
+        "acronyme": "PASCALINE",
+        "centre": "Lyon"
+    },
+    "https://ror.org/01cka1x81": {
+        "acronyme": "MUSICS",
+        "centre": "Lyon"
+    },
+    "https://ror.org/0241sry50": {
+        "acronyme": "CASTING",
+        "centre": "Lyon"
+    },
+    "https://ror.org/019txxw85": {
+        "acronyme": "MALICE",
+        "centre": "Lyon"
+    },
+    "https://ror.org/0233qcv12": {
+        "acronyme": "AISTROSIGHT",
+        "centre": "Lyon"
+    },
+    "https://ror.org/02ejmm326": {
+        "acronyme": "OCKHAM",
+        "centre": "Lyon"
+    },
+    "https://ror.org/010h8d806": {
+        "acronyme": "SEMIS",
+        "centre": "Lyon"
+    },
+    "https://ror.org/016w2y923": {
+        "acronyme": "AGORA",
+        "centre": "Lyon"
+    },
+    "https://ror.org/03fm6kj16": {
+        "acronyme": "MARACAS",
+        "centre": "Lyon"
+    },
+    "https://ror.org/035k61372": {
+        "acronyme": "MOSAIC",
+        "centre": "Lyon"
+    },
+    "https://ror.org/0282csf50": {
+        "acronyme": "ARIC",
+        "centre": "Lyon"
+    },
+    "https://ror.org/022pm4x73": {
+        "acronyme": "AVALON",
+        "centre": "Lyon"
+    },
+    "https://ror.org/03k192506": {
+        "acronyme": "CASH",
+        "centre": "Lyon"
+    },
+    "https://ror.org/0571jty83": {
+        "acronyme": "ROMA",
+        "centre": "Lyon"
+    },
+    "https://ror.org/02gqj2v09": {
+        "acronyme": "ERABLE",
+        "centre": "Lyon"
+    },
+    "https://ror.org/05vaf4569": {
+        "acronyme": "EMERAUDE",
+        "centre": "Lyon"
+    },
+    "https://ror.org/01y3nsv51": {
+        "acronyme": "CoPhy",
+        "centre": "Lyon"
+    },
+    "https://ror.org/046fmsw47": {
+        "acronyme": "TOPAL",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/034j91g93": {
+        "acronyme": "CONCACE",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/01zpdyq44": {
+        "acronyme": "BIVWAC",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/02pkbtk91": {
+        "acronyme": "ASTRAL",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/03pfm1t26": {
+        "acronyme": "AUCTUS",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/039zcz976": {
+        "acronyme": "Mnemosyne",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/03e9yxc42": {
+        "acronyme": "CARDAMOM",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/00zzgef46": {
+        "acronyme": "STORM",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/02kxjkv05": {
+        "acronyme": "MONC",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/04gy3ks39": {
+        "acronyme": "MEMPHIS",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/04881e359": {
+        "acronyme": "TADAAM",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/00c174c31": {
+        "acronyme": "CANARI",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/04m5zyp18": {
+        "acronyme": "CARMEN",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/001vjcf44": {
+        "acronyme": "PLEIADE",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/05qacnn14": {
+        "acronyme": "EDGE",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/05v519z54": {
+        "acronyme": "Potioc",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/04tb95541": {
+        "acronyme": "MANAO",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/04af4y522": {
+        "acronyme": "CAGIRE",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/026t7px13": {
+        "acronyme": "SISTM",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/046c1g807": {
+        "acronyme": "FLOWERS",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/05k49tq53": {
+        "acronyme": "MAKUTU",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/02m9pkf41": {
+        "acronyme": "CAPSID",
+        "centre": "Nancy"
+    },
+    "https://ror.org/02mv3qy73": {
+        "acronyme": "MULTISPEECH",
+        "centre": "Nancy"
+    },
+    "https://ror.org/04e835403": {
+        "acronyme": "MIMESIS",
+        "centre": "Nancy"
+    },
+    "https://ror.org/03w9t3v76": {
+        "acronyme": "MOCQUA",
+        "centre": "Nancy"
+    },
+    "https://ror.org/00vk6my81": {
+        "acronyme": "RESIST",
+        "centre": "Nancy"
+    },
+    "https://ror.org/019yhsq25": {
+        "acronyme": "PESTO",
+        "centre": "Nancy"
+    },
+    "https://ror.org/0440j7g03": {
+        "acronyme": "VERIDIS",
+        "centre": "Nancy"
+    },
+    "https://ror.org/02n848x19": {
+        "acronyme": "PIXEL",
+        "centre": "Nancy"
+    },
+    "https://ror.org/0005fxe59": {
+        "acronyme": "TANGRAM",
+        "centre": "Nancy"
+    },
+    "https://ror.org/034kszc22": {
+        "acronyme": "CARAMBA",
+        "centre": "Nancy"
+    },
+    "https://ror.org/048c8c312": {
+        "acronyme": "MFX",
+        "centre": "Nancy"
+    },
+    "https://ror.org/0325tbk69": {
+        "acronyme": "CAMUS",
+        "centre": "Nancy"
+    },
+    "https://ror.org/02xc7ww16": {
+        "acronyme": "SEMAGRAMME",
+        "centre": "Nancy"
+    },
+    "https://ror.org/03kdymn35": {
+        "acronyme": "COAST",
+        "centre": "Nancy"
+    },
+    "https://ror.org/05rv46r52": {
+        "acronyme": "LARSEN",
+        "centre": "Nancy"
+    },
+    "https://ror.org/008kj1d63": {
+        "acronyme": "SIMBA",
+        "centre": "Nancy"
+    },
+    "https://ror.org/034zjpe43": {
+        "acronyme": "GAMBLE",
+        "centre": "Nancy"
+    },
+    "https://ror.org/03bj6gc92": {
+        "acronyme": "SPHINX",
+        "centre": "Nancy"
+    },
+    "https://ror.org/05c6e6w24": {
+        "acronyme": "PASTA",
+        "centre": "Nancy"
+    },
+    "https://ror.org/03de2ht59": {
+        "acronyme": "MACARON",
+        "centre": "Nancy"
+    },
+    "https://ror.org/04zja0e38": {
+        "acronyme": "BONUS",
+        "centre": "Lille"
+    },
+    "https://ror.org/05sk9zb20": {
+        "acronyme": "MODAL",
+        "centre": "Lille"
+    },
+    "https://ror.org/0110mcx69": {
+        "acronyme": "SYCOMORES",
+        "centre": "Lille"
+    },
+    "https://ror.org/00zm0ea22": {
+        "acronyme": "EVREF",
+        "centre": "Lille"
+    },
+    "https://ror.org/05ghgkk68": {
+        "acronyme": "LINKS",
+        "centre": "Lille"
+    },
+    "https://ror.org/01jc9hv70": {
+        "acronyme": "MAGNET",
+        "centre": "Lille"
+    },
+    "https://ror.org/03eyty988": {
+        "acronyme": "SPIRALS",
+        "centre": "Lille"
+    },
+    "https://ror.org/0240qp408": {
+        "acronyme": "RAPSODI",
+        "centre": "Lille"
+    },
+    "https://ror.org/00hxn0m30": {
+        "acronyme": "INOCS",
+        "centre": "Lille"
+    },
+    "https://ror.org/00n7ba848": {
+        "acronyme": "DEFROST",
+        "centre": "Lille"
+    },
+    "https://ror.org/05nqng710": {
+        "acronyme": "FUN",
+        "centre": "Lille"
+    },
+    "https://ror.org/02m8aq428": {
+        "acronyme": "VALSE",
+        "centre": "Lille"
+    },
+    "https://ror.org/040dpfz92": {
+        "acronyme": "Paradyse",
+        "centre": "Lille"
+    },
+    "https://ror.org/025wa0q37": {
+        "acronyme": "Scool",
+        "centre": "Lille"
+    },
+    "https://ror.org/04z5j4a93": {
+        "acronyme": "LOKI",
+        "centre": "Lille"
+    },
+    "https://ror.org/01z0e7y08": {
+        "acronyme": "TRiBE",
+        "centre": "Saclay"
+    },
+    "https://ror.org/00xv6bg25": {
+        "acronyme": "PETSCRAFT",
+        "centre": "Saclay"
+    },
+    "https://ror.org/0406xq039": {
+        "acronyme": "SIMBIOTX",
+        "centre": "Saclay"
+    },
+    "https://ror.org/0483s2h18": {
+        "acronyme": "GAMMAO",
+        "centre": "Saclay"
+    },
+    "https://ror.org/039v8sa14": {
+        "acronyme": "Lifeware",
+        "centre": "Saclay"
+    },
+    "https://ror.org/030zn8d06": {
+        "acronyme": "SODA",
+        "centre": "Saclay"
+    },
+    "https://ror.org/02fh7gz32": {
+        "acronyme": "MATHEXP",
+        "centre": "Saclay"
+    },
+    "https://ror.org/013c4e161": {
+        "acronyme": "KOPERNIC",
+        "centre": "Paris"
+    },
+    "https://ror.org/055gkws08": {
+        "acronyme": "ASTRA",
+        "centre": "Paris"
+    },
+    "https://ror.org/05rnwy495": {
+        "acronyme": "ALMAnaCH",
+        "centre": "Paris"
+    },
+    "https://ror.org/01qemch77": {
+        "acronyme": "CAMBIUM",
+        "centre": "Paris"
+    },
+    "https://ror.org/00rzkah64": {
+        "acronyme": "MUSCLEES",
+        "centre": "Paris"
+    },
+    "https://ror.org/05pv6tc14": {
+        "acronyme": "MATHERIALS",
+        "centre": "Paris"
+    },
+    "https://ror.org/016z8nq35": {
+        "acronyme": "MATHRISK",
+        "centre": "Paris"
+    },
+    "https://ror.org/033f87p02": {
+        "acronyme": "PICUBE",
+        "centre": "Paris"
+    },
+    "https://ror.org/05pp95825": {
+        "acronyme": "MOKAPLAN",
+        "centre": "Paris"
+    },
+    "https://ror.org/04881ht90": {
+        "acronyme": "MIMOVE",
+        "centre": "Paris"
+    },
+    "https://ror.org/02tnfe688": {
+        "acronyme": "Parkas",
+        "centre": "Paris"
+    },
+    "https://ror.org/01nryz461": {
+        "acronyme": "PROSECCO",
+        "centre": "Paris"
+    },
+    "https://ror.org/00e5h1370": {
+        "acronyme": "SERENA",
+        "centre": "Paris"
+    },
+    "https://ror.org/0485z7y90": {
+        "acronyme": "SIERRA",
+        "centre": "Paris"
+    },
+    "https://ror.org/04c96ng72": {
+        "acronyme": "WILLOW",
+        "centre": "Paris"
+    },
+    "https://ror.org/05089qr23": {
+        "acronyme": "Whisper",
+        "centre": "Paris"
+    },
+    "https://ror.org/02wakmj41": {
+        "acronyme": "ANTIQUE",
+        "centre": "Paris"
+    },
+    "https://ror.org/04zpj8n12": {
+        "acronyme": "CASCADE",
+        "centre": "Paris"
+    },
+    "https://ror.org/02njc8q57": {
+        "acronyme": "DYOGENE",
+        "centre": "Paris"
+    },
+    "https://ror.org/00my0j309": {
+        "acronyme": "HeKA | U1346",
+        "centre": "Paris"
+    },
+    "https://ror.org/00xn8xq53": {
+        "acronyme": "VALDA",
+        "centre": "Paris"
+    },
+    "https://ror.org/05a6hqa33": {
+        "acronyme": "EPIMETHEE",
+        "centre": "Paris"
+    },
+    "https://ror.org/02jpms184": {
+        "acronyme": "NERV",
+        "centre": "Paris"
+    },
+    "https://ror.org/02jkb9r34": {
+        "acronyme": "ARGO",
+        "centre": "Paris"
+    },
+    "https://ror.org/01tnxwc41": {
+        "acronyme": "INBIO",
+        "centre": "Paris"
+    },
+    "https://ror.org/024tnzs33": {
+        "acronyme": "COSMIQ",
+        "centre": "Paris"
+    },
+    "https://ror.org/03ppjg142": {
+        "acronyme": "AIO",
+        "centre": "Paris"
+    },
+    "https://ror.org/010yn8j22": {
+        "acronyme": "ATLANTIS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/0331z0d02": {
+        "acronyme": "AYANA",
+        "centre": "Sophia"
+    },
+    "https://ror.org/00c9pnr51": {
+        "acronyme": "I4S",
+        "centre": "Rennes"
+    },
+    "https://ror.org/04y9vv765": {
+        "acronyme": "HEPHAISTOS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/05qgc7m36": {
+        "acronyme": "WIDE",
+        "centre": "Rennes"
+    },
+    "https://ror.org/05j95bh22": {
+        "acronyme": "DIANA",
+        "centre": "Sophia"
+    },
+    "https://ror.org/02c9cqe66": {
+        "acronyme": "TITANE",
+        "centre": "Sophia"
+    },
+    "https://ror.org/02mab7455": {
+        "acronyme": "COATI",
+        "centre": "Sophia"
+    },
+    "https://ror.org/03gwakv46": {
+        "acronyme": "LEMON",
+        "centre": "Sophia"
+    },
+    "https://ror.org/03fedwt95": {
+        "acronyme": "SAIRPICO",
+        "centre": "Rennes"
+    },
+    "https://ror.org/03g7tsb60": {
+        "acronyme": "EPICURE",
+        "centre": "Rennes"
+    },
+    "https://ror.org/03p28de55": {
+        "acronyme": "VIRTUS",
+        "centre": "Rennes"
+    },
+    "https://ror.org/03ad2mf95": {
+        "acronyme": "ABS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/05sxdf220": {
+        "acronyme": "EPIONE",
+        "centre": "Sophia"
+    },
+    "https://ror.org/05bjvdf85": {
+        "acronyme": "FACTAS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/00077hj81": {
+        "acronyme": "DEVINE",
+        "centre": "Rennes"
+    },
+    "https://ror.org/05pj0t051": {
+        "acronyme": "MAGELLAN",
+        "centre": "Rennes"
+    },
+    "https://ror.org/0421ngv68": {
+        "acronyme": "SUSHI",
+        "centre": "Rennes"
+    },
+    "https://ror.org/02tpkcv11": {
+        "acronyme": "ANGUS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/035vnpg93": {
+        "acronyme": "KerData",
+        "centre": "Rennes"
+    },
+    "https://ror.org/043ja9593": {
+        "acronyme": "Dyliss",
+        "centre": "Rennes"
+    },
+    "https://ror.org/02tnenk24": {
+        "acronyme": "BOREAL",
+        "centre": "Sophia"
+    },
+    "https://ror.org/02v0g3b09": {
+        "acronyme": "CAPSULE",
+        "centre": "Rennes"
+    },
+    "https://ror.org/00ynfac79": {
+        "acronyme": "MARIANNE",
+        "centre": "Sophia"
+    },
+    "https://ror.org/0159yvt51": {
+        "acronyme": "LACODAM",
+        "centre": "Rennes"
+    },
+    "https://ror.org/00rttk466": {
+        "acronyme": "GenScale",
+        "centre": "Rennes"
+    },
+    "https://ror.org/002sjzb46": {
+        "acronyme": "HYCOMES",
+        "centre": "Rennes"
+    },
+    "https://ror.org/059z1ye11": {
+        "acronyme": "PACAP",
+        "centre": "Rennes"
+    },
+    "https://ror.org/0194hft57": {
+        "acronyme": "DiverSe",
+        "centre": "Rennes"
+    },
+    "https://ror.org/02gap9590": {
+        "acronyme": "BIOVISION",
+        "centre": "Sophia"
+    },
+    "https://ror.org/01svbzm77": {
+        "acronyme": "MATHNEURO",
+        "centre": "Sophia"
+    },
+    "https://ror.org/03n4whq22": {
+        "acronyme": "GRAPHDECO",
+        "centre": "Sophia"
+    },
+    "https://ror.org/053wq2p27": {
+        "acronyme": "ARTISHAU",
+        "centre": "Rennes"
+    },
+    "https://ror.org/00gwm8q58": {
+        "acronyme": "IROKO",
+        "centre": "Sophia"
+    },
+    "https://ror.org/024wx0b20": {
+        "acronyme": "SPLITS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/01yvm5309": {
+        "acronyme": "MACBES",
+        "centre": "Sophia"
+    },
+    "https://ror.org/04fqa0d17": {
+        "acronyme": "MAASAI",
+        "centre": "Sophia"
+    },
+    "https://ror.org/03rh4zb49": {
+        "acronyme": "CASTOR",
+        "centre": "Sophia"
+    },
+    "https://ror.org/05v2cwj11": {
+        "acronyme": "COMPACT",
+        "centre": "Rennes"
+    },
+    "https://ror.org/00y7vs922": {
+        "acronyme": "ACUMES",
+        "centre": "Sophia"
+    },
+    "https://ror.org/046v7pr94": {
+        "acronyme": "STAMP",
+        "centre": "Sophia"
+    },
+    "https://ror.org/03wt8n129": {
+        "acronyme": "STACK",
+        "centre": "Rennes"
+    },
+    "https://ror.org/01gamk045": {
+        "acronyme": "GALLINETTE",
+        "centre": "Rennes"
+    },
+    "https://ror.org/035fwjk44": {
+        "acronyme": "STARS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/04hsaft65": {
+        "acronyme": "WIMMICS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/00w25wb51": {
+        "acronyme": "ODYSSEY",
+        "centre": "Rennes"
+    },
+    "https://ror.org/05h4ccq74": {
+        "acronyme": "KAIROS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/009bc7242": {
+        "acronyme": "NEO",
+        "centre": "Sophia"
+    },
+    "https://ror.org/0165kg211": {
+        "acronyme": "CAMIN",
+        "centre": "Sophia"
+    },
+    "https://ror.org/02fw3g688": {
+        "acronyme": "OLAS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/056ntzw90": {
+        "acronyme": "CRONOS",
+        "centre": "Sophia"
+    },
+    "https://ror.org/039bszh67": {
+        "acronyme": "EVERGREEN",
+        "centre": "Sophia"
+    },
+    "https://ror.org/005g9fg60": {
+        "acronyme": "MALT",
+        "centre": "Rennes"
+    },
+    "https://ror.org/037a7q098": {
+        "acronyme": "ACENTAURI",
+        "centre": "Sophia"
+    },
+    "https://ror.org/00xk87z93": {
+        "acronyme": "GREENOWL",
+        "centre": "Sophia"
+    },
+    "https://ror.org/038mncb54": {
+        "acronyme": "MIMETIC",
+        "centre": "Rennes"
+    },
+    "https://ror.org/00q8gze35": {
+        "acronyme": "RAINBOW",
+        "centre": "Rennes"
+    },
+    "https://ror.org/02hp31992": {
+        "acronyme": "EMPENN",
+        "centre": "Rennes"
+    },
+    "https://ror.org/00xkg0532": {
+        "acronyme": "LinkMedia",
+        "centre": "Rennes"
+    },
+    "https://ror.org/022jb9a19": {
+        "acronyme": "SEAMLESS",
+        "centre": "Rennes"
+    },
+    "https://ror.org/04abbt041": {
+        "acronyme": "PIRAT",
+        "centre": "Rennes"
+    },
+    "https://ror.org/03n2qjy25": {
+        "acronyme": "CALISTO",
+        "centre": "Sophia"
+    },
+    "https://ror.org/04qgdxq75": {
+        "acronyme": "ERMINE",
+        "centre": "Rennes"
+    },
+    "https://ror.org/050y2w676": {
+        "acronyme": "PREMEDICAL",
+        "centre": "Sophia"
+    },
+    "https://ror.org/04xnkqg56": {
+        "acronyme": "TARAN",
+        "centre": "Rennes"
+    },
+    "https://ror.org/02c7vb662": {
+        "acronyme": "COMPO",
+        "centre": "Sophia"
+    },
+    "https://ror.org/03p3amd86": {
+        "acronyme": "ComBO",
+        "centre": "Rennes"
+    },
+    "https://ror.org/015b80x98": {
+        "acronyme": "SIMSMART",
+        "centre": "Rennes"
+    },
+    "https://ror.org/03856b930": {
+        "acronyme": "MINGUS",
+        "centre": "Rennes"
+    },
+    "https://ror.org/00xcapc45": {
+        "acronyme": "MORPHEME",
+        "centre": "Sophia"
+    },
+    "https://ror.org/042f4ww95": {
+        "acronyme": "McTAO",
+        "centre": "Sophia"
+    },
+    "https://ror.org/04a11tk94": {
+        "acronyme": "AROMATH",
+        "centre": "Sophia"
+    },
+    "https://ror.org/007k1sp19": {
+        "acronyme": "Hybrid",
+        "centre": "Rennes"
+    },
+    "https://ror.org/02cksep19": {
+        "acronyme": "TYREX",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/032j1fw45": {
+        "acronyme": "DANCE",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/01pgzvb06": {
+        "acronyme": "KRAKOS",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/03ctyg534": {
+        "acronyme": "ELAN",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/03v4jvx71": {
+        "acronyme": "TRIPOP",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/01nc10f70": {
+        "acronyme": "STATIFY",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/02a2awp29": {
+        "acronyme": "Thoth",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/02j7awn61": {
+        "acronyme": "MAVERICK",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/02zws8w42": {
+        "acronyme": "AIRSEA",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/013f2p073": {
+        "acronyme": "STEEP",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/02s3b7375": {
+        "acronyme": "ANIMA",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/045ff8v85": {
+        "acronyme": "CTRL-A",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/056th3f83": {
+        "acronyme": "POLARIS",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/024cwyh09": {
+        "acronyme": "DATAMOVE",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/0381pta47": {
+        "acronyme": "MOEX",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/056hxch81": {
+        "acronyme": "CORSE",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/02t6zvp46": {
+        "acronyme": "CONVECS",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/01zn4dj88": {
+        "acronyme": "SPADES",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/00wvtes77": {
+        "acronyme": "MORPHEO",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/04x550321": {
+        "acronyme": "ROBOTLEARN",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/05hq7wc19": {
+        "acronyme": "MICROCOSME",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/04040yw90": {
+        "acronyme": "Rennes",
+        "centre": "Rennes"
+    },
+    "https://ror.org/03tjcj052": {
+        "acronyme": "Bordeaux",
+        "centre": "Bordeaux"
+    },
+    "https://ror.org/01nzkaw91": {
+        "acronyme": "Sophia",
+        "centre": "Sophia"
+    },
+    "https://ror.org/00n8d6z93": {
+        "acronyme": "Grenoble",
+        "centre": "Grenoble"
+    },
+    "https://ror.org/022gakr41": {
+        "acronyme": "Lyon",
+        "centre": "Lyon"
+    },
+    "https://ror.org/03fcjvn64": {
+        "acronyme": "Nancy",
+        "centre": "Nancy"
+    },
+    "https://ror.org/04eej9726": {
+        "acronyme": "Lille",
+        "centre": "Lille"
+    },
+    "https://ror.org/0315e5x55": {
+        "acronyme": "Saclay",
+        "centre": "Saclay"
+    },
+    "https://ror.org/05eyd5d35": {
+        "acronyme": "Paris",
+        "centre": "Paris"
+    },
+    "https://ror.org/03cjm2544": {
+        "acronyme": "Paris(sorb)",
+        "centre": "Paris(sorb)"
+    },
+    "https://ror.org/026839t73": {
+        "acronyme": "Saclay (ipp)",
+        "centre": "Saclay (ipp)"
+    },
+    "https://ror.org/040753f36": {
+        "acronyme": "Saclay (UPS)",
+        "centre": "Saclay (UPS)"
+    },
+    "https://ror.org/02kvxyf05": {
+        "acronyme": "Inria",
+        "centre": "Inria"
+    }
+};
+
+
+//====================================================
+// Variables globales
+//====================================================
+
+let currentRows = [];
+
+document
+.getElementById("halBtn")
+.style.display =
+    "none";
+
+//====================================================
+// Extraction des liens OpenAlex depuis un mail
+//====================================================
+
+function extractOpenAlexLinks(html){
+
+    const parser =
+        new DOMParser();
+
+    const doc =
+        parser.parseFromString(
+            html,
+            "text/html"
+        );
+
+    const links = [];
+
+    doc.querySelectorAll("a")
+        .forEach(a => {
+
+        const href = a.href;
+        const text =
+            a.textContent.trim();
+
+        if(
+            href &&
+            href.startsWith(
+                "https://openalex.org/W"
+            ) &&
+            text !== "Full Text Available"
+        ){
+
+            links.push({
+                title:text,
+                url:href
+            });
+        }
+    });
+
+    return links;
+}
+
+
+//====================================================
+// Repérage de saisie d'une api
+//====================================================
+async function fetchAllOpenAlexResults(apiUrl){
+
+    let allResults = [];
+    let cursor = "*";
+    let hasMore = true;
+
+    while(hasMore){
+
+        const separator =
+            apiUrl.includes("?") ? "&" : "?";
+
+        const cleanUrl =
+            apiUrl
+                .replace(/&?per-page=\d+/g, "")
+                .replace(/&?cursor=[^&]*/g, "");
+
+        const url =
+            `${cleanUrl}${separator}per-page=200&cursor=${encodeURIComponent(cursor)}`;
+
+        console.log("Requête:", url);
+
+        const response =
+            await fetch(url);
+
+        if(!response.ok){
+            throw new Error("Erreur API OpenAlex");
+        }
+
+        const data =
+            await response.json();
+
+        const results =
+            data.results || [];
+
+        allResults.push(...results);
+
+        document.getElementById("status").textContent =
+            `${allResults.length} publication(s) récupérée(s)...`;
+
+        cursor =
+            data.meta?.next_cursor;
+
+        if(!cursor || results.length === 0){
+            hasMore = false;
+        }
+    }
+
+    return allResults;
+}
+
+
+function extractWorkIds(text){
+
+    const ids = new Set();
+
+    const workIds =
+        text.match(
+            /\bW\d+\b/g
+        ) || [];
+
+    workIds.forEach(
+        id => ids.add(id)
+    );
+
+    const urls =
+        text.match(
+            /https:\/\/openalex\.org\/W\d+/g
+        ) || [];
+
+    urls.forEach(url => {
+
+        const id =
+            url.split("/")
+               .pop();
+
+        ids.add(id);
+
+    });
+
+    return [...ids].map(id => ({
+        title:id,
+        url:
+          "https://openalex.org/" + id
+    }));
+}
+//====================================================
+// Appel OpenAlex
+//====================================================
+
+async function getWork(openAlexUrl){
+
+    const apiUrl =
+        openAlexUrl.replace(
+            "https://openalex.org/",
+            "https://api.openalex.org/"
+        );
+
+    const response =
+        await fetch(apiUrl);
+
+    if(!response.ok){
+        throw new Error(
+            "Erreur API OpenAlex"
+        );
+    }
+
+    return await response.json();
+}
+
+//====================================================
+// Recherche HAL
+//====================================================
+
+async function searchHalByDoi(doi){
+
+    if(!doi){
+        return null;
+    }
+
+    const cleanDoi =
+        doi.replace(
+            "https://doi.org/",
+            ""
+        );
+
+    const url =
+        "https://api.archives-ouvertes.fr/search/?" +
+        "q=doiId_s:%22" +
+        encodeURIComponent(cleanDoi) +
+        "%22" +
+        "&fl=docid,halId_s,uri_s,collCode_s" +
+        "&rows=10" +
+        "&wt=json";
+
+    const response =
+        await fetch(url);
+
+    const data =
+        await response.json();
+
+    if(
+        data.response &&
+        data.response.numFound > 0
+    ){
+        return data.response.docs[0];
+    }
+
+    return null;
+}
+
+// Recherche par titre si doi ne donne rien
+async function searchHalByTitle(title){
+
+    if(!title){
+        return null;
+    }
+
+    const url =
+        "https://api.archives-ouvertes.fr/search/?" +
+        "q=title_t:(" +
+        encodeURIComponent(title) +
+        ")" +
+        "&fl=docid,halId_s,uri_s,title_s,collCode_s" +
+        "&rows=5" +
+        "&wt=json";
+
+    const response =
+        await fetch(url);
+
+    const data =
+        await response.json();
+
+    if(
+        data.response &&
+        data.response.numFound > 0
+    ){
+        return data.response.docs[0];
+    }
+
+    return null;
+}
+//====================================================
+// Parsing
+//====================================================
+
+function parseWork(work){
+
+    const authors = [];
+    const institutions = new Set();
+
+    const inriaRors = new Set();
+    const inriaAcronyms = new Set();
+    const inriaCentres = new Set();
+    const bestOaLocation =
+        work.best_oa_location || null;
+
+    (work.authorships || [])
+        .forEach(auth => {
+
+        const author =
+            auth.author?.display_name;
+
+        if(author){
+            authors.push(author);
+        }
+
+        (auth.institutions || [])
+            .forEach(inst => {
+
+            if(inst.display_name){
+                institutions.add(
+                    inst.display_name
+                );
+            }
+
+            const ror = inst.ror;
+
+            if(
+                ror &&
+                rorMapping[ror]
+            ){
+
+                inriaRors.add(ror);
+
+                inriaAcronyms.add(
+                    rorMapping[ror]
+                    .acronyme
+                );
+
+                inriaCentres.add(
+                    rorMapping[ror]
+                    .centre
+                );
+            }
+
+        });
+
+    });
+
+    const primaryLocation =
+        work.primary_location || {};
+
+    return {
+
+        id: work.id,
+
+        title:
+            work.title,
+
+        pdf_url:
+            bestOaLocation?.pdf_url
+            ||
+            bestOaLocation?.landing_page_url
+            ||
+            "",
+
+        source:
+            primaryLocation
+                ?.source
+                ?.display_name
+            ||
+            primaryLocation
+                ?.raw_source_name
+            ||
+            "",
+
+        publication_year:
+            work.publication_year,
+
+        type:
+            work.type,
+
+        doi:
+            work.doi,
+
+        authors:
+            authors.join("; "),
+
+        institutions:
+            [...institutions]
+            .sort()
+            .join("; "),
+
+        inria_ror:
+            [...inriaRors]
+            .sort()
+            .join("; "),
+
+        inria_acronyme:
+            [...inriaAcronyms]
+            .sort()
+            .join("; "),
+
+        inria_centre:
+            [...inriaCentres]
+            .sort()
+            .join("; ")
+    };
+}
+
+
+//====================================================
+// Affichage tableau
+//====================================================
+
+function displayRows(rows){
+
+    const tbody =
+        document.querySelector(
+            "#resultsTable tbody"
+        );
+
+    tbody.innerHTML = "";
+
+    rows.forEach(row => {
+
+        const tr =
+            document.createElement("tr");
+
+        const openAlexId =
+            row.id
+            ? row.id.split("/").pop()
+            : "";
+
+        tr.innerHTML = `
+
+        <td>${row.title || ""}</td>
+
+        <td>
+        ${
+        row.id
+        ? `<a href="${row.id}" target="_blank">${openAlexId}</a>`
+        : ""
+        }
+        </td>
+
+        <td>
+        ${
+        row.doi
+        ? `<a href="${row.doi}" target="_blank">${row.doi}</a>`
+        : ""
+        }
+        </td>
+
+        <td>
+        ${
+        row.pdf_url
+        ? `<a href="${row.pdf_url}" target="_blank">PDF</a>`
+        : ""
+        }
+        </td>        
+
+        <td>${row.publication_year || ""}</td>
+
+        <td>${row.source || ""}</td>
+
+        <td>${row.type || ""}</td>
+
+        <td>${row.authors || ""}</td>
+
+        <td>${row.institutions || ""}</td>
+
+        <td>${row.inria_acronyme || ""}</td>
+
+        <td>${row.inria_centre || ""}</td>
+
+        <td>
+        ${
+        row.hal_url
+        ? `<a href="${row.hal_url}" target="_blank">${row.hal_id}</a>`
+        : ""
+        }
+        </td>
+
+        <td>${row.hal_match || ""}</td>
+        <td>${row.collection_found || ""}</td>
+
+        `;
+        tbody.appendChild(tr);
+
+    });
+
+}
+
+
+//====================================================
+// Analyse
+//====================================================
+
+document
+.getElementById("analyseBtn")
+.addEventListener(
+"click",
+async () => {
+
+    const status =
+        document.getElementById(
+            "status"
+        );
+
+    currentRows = [];
+
+    document.getElementById(
+        "exportBtn"
+    ).style.display = "none";
+    
+    document
+        .getElementById("exportCheckBtn")
+        .style.display =
+            "none";
+
+    try{
+
+        const apiUrl =
+            document.getElementById("apiInput")
+            .value
+            .trim();
+
+        if(apiUrl){
+
+            status.textContent =
+                "Chargement depuis API OpenAlex...";
+
+            const works =
+                await fetchAllOpenAlexResults(apiUrl);
+
+            for(const work of works){
+
+                const row =
+                    parseWork(work);
+
+                currentRows.push(row);
+            }
+
+        } else {
+
+            const zone =
+                document.getElementById(
+                    "pasteZone"
+                );
+
+            const html =
+                zone.innerHTML;
+
+            const text =
+                zone.innerText;
+
+            let links =
+                extractOpenAlexLinks(html);
+
+            if(links.length === 0){
+                links =
+                    extractWorkIds(text);
+            }
+
+            status.textContent =
+                `${links.length} publication(s) détectée(s) et en cours de traitement...`;
+
+            for(const item of links){
+
+                try{
+                    const work =
+                        await getWork(item.url);
+
+                    const row =
+                        parseWork(work);
+
+                    currentRows.push(row);
+                }
+                catch(err){
+                    console.error(item.url, err);
+                }
+            }
+        }
+
+        displayRows(currentRows);
+        
+
+        status.textContent =
+            `${currentRows.length} publication(s) traitée(s)`;
+
+        if(currentRows.length > 0){
+
+            document
+            .getElementById("halBtn")
+            .style.display =
+                "inline-block";
+        }            
+
+        document.getElementById(
+            "exportBtn"
+        ).style.display = "inline-block";   
+        
+        document
+            .getElementById("exportCheckBtn")
+            .style.display =
+                "inline-block";
+
+    }
+    catch(err){
+
+        console.error(err);
+
+        status.textContent =
+            "Erreur";
+
+    }
+
+});
+
+
+//====================================================
+// Traitement de HAL
+//====================================================
+document
+.getElementById("halBtn")
+.addEventListener(
+"click",
+async () => {
+
+    const status =
+        document.getElementById(
+            "status"
+        );
+
+    const wantedCollection =
+    document.getElementById("halCollectionInput")
+    .value
+    .trim()
+    .toUpperCase();
+
+    status.textContent =
+        "Recherche dans HAL (patience, env. 30 sec pour 100 références)...";
+
+    let found = 0;
+
+    for(const row of currentRows){
+
+        try{
+
+
+            let hal =
+                await searchHalByDoi(
+                    row.doi
+                );
+
+            let matchType = "";
+
+            if(hal){
+
+                matchType = "DOI";
+
+            }
+            else{
+
+                hal =
+                    await searchHalByTitle(
+                        row.title
+                    );
+
+                if(hal){
+                    matchType = "Titre";
+                }
+                
+
+            }
+
+            if(hal){
+
+                found++;
+
+                row.hal_docid =
+                    hal.docid;
+
+                row.hal_id =
+                    hal.halId_s;
+
+                row.hal_url =
+                    hal.uri_s;
+
+                row.hal_match =
+                    matchType;
+
+                const collections =
+                    hal.collCode_s || [];
+
+                const collectionList =
+                    Array.isArray(collections)
+                        ? collections
+                        : [collections];
+
+                row.hal_collections =
+                    collectionList.join("; ");
+
+                if(wantedCollection){
+
+                    row.collection_found =
+                        collectionList
+                            .map(c => c.toUpperCase())
+                            .includes(wantedCollection)
+                            ? "Oui"
+                            : "Non";
+
+                }
+                else{
+
+                    row.collection_found = "";
+
+                }
+            }
+            else{
+
+                row.hal_match =
+                    "Non trouvé";
+                row.hal_collections = "";
+                row.collection_found = "";
+            }                    
+
+        }
+        catch(error){
+
+            console.error(
+                row.doi,
+                error
+            );
+
+        }
+
+    }
+
+    currentRows.sort(
+        (a, b) =>
+            (a.title || "")
+            .localeCompare(
+                b.title || "",
+                "fr",
+                { sensitivity: "base" }
+            )
+    );
+
+    displayRows(currentRows);
+
+    status.textContent =
+        `${found} publication(s) trouvée(s) dans HAL`;
+
+});
+
+//====================================================
+// Export Excel
+//====================================================
+
+document
+.getElementById("exportBtn")
+.addEventListener(
+"click",
+() => {
+
+    if(
+        currentRows.length === 0
+    ){
+        alert(
+            "Aucune donnée"
+        );
+        return;
+    }
+
+    const ws =
+        XLSX.utils
+        .json_to_sheet(
+            currentRows
+        );
+
+    const wb =
+        XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+        wb,
+        ws,
+        "OpenAlex"
+    );
+
+    XLSX.writeFile(
+        wb,
+        "openalex_metadonnees_des_alertes.xlsx"
+    );
+
+});
+
+
+
+document
+.getElementById("exportCheckBtn")
+.addEventListener(
+"click",
+() => {
+
+    const rowsToCheck =
+        currentRows.filter(
+            row =>
+                row.hal_match === "Titre"
+                ||
+                row.hal_match === "Non trouvé"
+        );
+
+    if(rowsToCheck.length === 0){
+
+        alert(
+            "Aucune référence à vérifier"
+        );
+
+        return;
+
+    }
+
+    const ws =
+        XLSX.utils
+        .json_to_sheet(
+            rowsToCheck
+        );
+
+    const wb =
+        XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+        wb,
+        ws,
+        "A_verifier"
+    );
+
+    XLSX.writeFile(
+        wb,
+        "publications_a_verifier.xlsx"
+    );
+
+});
+
+</script>
+
+</body>
+</html>
+
