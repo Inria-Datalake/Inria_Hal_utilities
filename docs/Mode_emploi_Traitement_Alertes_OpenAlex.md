@@ -1,4 +1,4 @@
-Ce formulaire propose 3 façons d'entrer des références d'OpenAlex pour les chercher ensuite dans HAL par le DOI ou par le titre.
+Ce [formulaire](https://inria-datalake.github.io/Inria_Hal_utilities/traitement_alertes_openalex.html) propose 3 façons d'entrer des références d'OpenAlex pour les chercher ensuite dans HAL par le DOI ou par le titre.
 
 1: contenu d'un mail d'Alerte / 1bis : liste de Work ID / 1ter : une api OpenAlex
 
