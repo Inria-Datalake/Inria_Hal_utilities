@@ -7,7 +7,6 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
 <style>
-
 body{
     font-family: Arial, sans-serif;
     margin:20px;
@@ -54,13 +53,16 @@ td{
     font-weight:bold;
 }
 
+#halCollectionContainer {
+    display: none;
+    margin-top: 10px;
+}
 </style>
 </head>
 
 <body>
 
 <h1>Analyse OpenAlex</h1>
-<p><a href="https://github.com/Inria-Datalake/Inria_Hal_utilities/blob/main/docs/Mode_emploi_Traitement_Alertes_OpenAlex.md" target="_blank">Comment utiliser ce formulaire ?</a></p>
 
 <p>Saisir une API OpenAlex :</p>
 
@@ -70,14 +72,7 @@ td{
     style="width:100%; padding:8px;"
     placeholder="https://api.openalex.org/works?filter=..."
 >
-<p>Collection HAL à vérifier (optionnel) :</p>
 
-<input
-    id="halCollectionInput"
-    type="text"
-    style="width:300px; padding:8px;"
-    placeholder="Ex: INRIA"
->
 <p>
 Ou Copiez l'email OpenAlex puis collez-le dans la zone ci-dessous.
 Ou copiez une liste de Work ID ci-dessous.
@@ -87,7 +82,16 @@ Ou copiez une liste de Work ID ci-dessous.
 
 <button id="analyseBtn">Analyser</button>
 
-
+<div id="halCollectionContainer">
+    <p>Collection HAL à vérifier (optionnel) :</p>
+    <input
+        id="halCollectionInput"
+        type="text"
+        style="width:300px; padding:8px;"
+        placeholder="Ex: INRIA"
+    >
+</div>
+<br />
 <button id="halBtn" style="display:none;">
     Rechercher dans HAL (DOI ou Titre)
 </button>
@@ -100,20 +104,18 @@ Ou copiez une liste de Work ID ci-dessous.
     id="exportCheckBtn"
     style="display:none;"
 >
-    Exporter Excel (uniquement doi absent de HAL ou référence absente de HAL))
+    Exporter Excel (uniquement doi absent de HAL ou référence absente de HAL)
 </button>
 
 <div id="status"></div>
 
 <table id="resultsTable">
-
 <thead>
 <tr>
     <th>Titre</th>
     <th>OpenAlex</th>
     <th>DOI</th>
     <th>PDF (si best_oa_location n'est pas null)</th>
-
     <th>Année</th>
     <th>Source</th>
     <th>Type</th>
@@ -126,13 +128,10 @@ Ou copiez une liste de Work ID ci-dessous.
     <th>Collection demandée trouvée ?</th>
 </tr>
 </thead>
-
 <tbody></tbody>
-
 </table>
 
 <script>
-
 //====================================================
 // Mapping ROR Inria
 //====================================================
@@ -1164,53 +1163,31 @@ const rorMapping = {
     }
 };
 
-
 //====================================================
 // Variables globales
 //====================================================
 
 let currentRows = [];
 
-document
-.getElementById("halBtn")
-.style.display =
-    "none";
+document.getElementById("halBtn").style.display = "none";
 
 //====================================================
 // Extraction des liens OpenAlex depuis un mail
 //====================================================
 
-function extractOpenAlexLinks(html){
-
-    const parser =
-        new DOMParser();
-
-    const doc =
-        parser.parseFromString(
-            html,
-            "text/html"
-        );
-
+function extractOpenAlexLinks(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
     const links = [];
 
-    doc.querySelectorAll("a")
-        .forEach(a => {
-
+    doc.querySelectorAll("a").forEach(a => {
         const href = a.href;
-        const text =
-            a.textContent.trim();
+        const text = a.textContent.trim();
 
-        if(
-            href &&
-            href.startsWith(
-                "https://openalex.org/W"
-            ) &&
-            text !== "Full Text Available"
-        ){
-
+        if (href && href.startsWith("https://openalex.org/W") && text !== "Full Text Available") {
             links.push({
-                title:text,
-                url:href
+                title: text,
+                url: href
             });
         }
     });
@@ -1218,53 +1195,37 @@ function extractOpenAlexLinks(html){
     return links;
 }
 
-
 //====================================================
 // Repérage de saisie d'une api
 //====================================================
-async function fetchAllOpenAlexResults(apiUrl){
-
+async function fetchAllOpenAlexResults(apiUrl) {
     let allResults = [];
     let cursor = "*";
     let hasMore = true;
 
-    while(hasMore){
-
-        const separator =
-            apiUrl.includes("?") ? "&" : "?";
-
-        const cleanUrl =
-            apiUrl
-                .replace(/&?per-page=\d+/g, "")
-                .replace(/&?cursor=[^&]*/g, "");
-
-        const url =
-            `${cleanUrl}${separator}per-page=200&cursor=${encodeURIComponent(cursor)}`;
+    while (hasMore) {
+        const separator = apiUrl.includes("?") ? "&" : "?";
+        const cleanUrl = apiUrl.replace(/&?per-page=\d+/g, "").replace(/&?cursor=[^&]*/g, "");
+        const url = `${cleanUrl}${separator}per-page=200&cursor=${encodeURIComponent(cursor)}`;
 
         console.log("Requête:", url);
 
-        const response =
-            await fetch(url);
+        const response = await fetch(url);
 
-        if(!response.ok){
+        if (!response.ok) {
             throw new Error("Erreur API OpenAlex");
         }
 
-        const data =
-            await response.json();
-
-        const results =
-            data.results || [];
+        const data = await response.json();
+        const results = data.results || [];
 
         allResults.push(...results);
 
-        document.getElementById("status").textContent =
-            `${allResults.length} publication(s) récupérée(s)...`;
+        document.getElementById("status").textContent = `${allResults.length} publication(s) récupérée(s)...`;
 
-        cursor =
-            data.meta?.next_cursor;
+        cursor = data.meta?.next_cursor;
 
-        if(!cursor || results.length === 0){
+        if (!cursor || results.length === 0) {
             hasMore = false;
         }
     }
@@ -1272,60 +1233,34 @@ async function fetchAllOpenAlexResults(apiUrl){
     return allResults;
 }
 
-
-function extractWorkIds(text){
-
+function extractWorkIds(text) {
     const ids = new Set();
 
-    const workIds =
-        text.match(
-            /\bW\d+\b/g
-        ) || [];
+    const workIds = text.match(/\bW\d+\b/g) || [];
+    workIds.forEach(id => ids.add(id));
 
-    workIds.forEach(
-        id => ids.add(id)
-    );
-
-    const urls =
-        text.match(
-            /https:\/\/openalex\.org\/W\d+/g
-        ) || [];
-
+    const urls = text.match(/https:\/\/openalex\.org\/W\d+/g) || [];
     urls.forEach(url => {
-
-        const id =
-            url.split("/")
-               .pop();
-
+        const id = url.split("/").pop();
         ids.add(id);
-
     });
 
     return [...ids].map(id => ({
-        title:id,
-        url:
-          "https://openalex.org/" + id
+        title: id,
+        url: "https://openalex.org/" + id
     }));
 }
+
 //====================================================
 // Appel OpenAlex
 //====================================================
 
-async function getWork(openAlexUrl){
+async function getWork(openAlexUrl) {
+    const apiUrl = openAlexUrl.replace("https://openalex.org/", "https://api.openalex.org/");
+    const response = await fetch(apiUrl);
 
-    const apiUrl =
-        openAlexUrl.replace(
-            "https://openalex.org/",
-            "https://api.openalex.org/"
-        );
-
-    const response =
-        await fetch(apiUrl);
-
-    if(!response.ok){
-        throw new Error(
-            "Erreur API OpenAlex"
-        );
+    if (!response.ok) {
+        throw new Error("Erreur API OpenAlex");
     }
 
     return await response.json();
@@ -1335,37 +1270,18 @@ async function getWork(openAlexUrl){
 // Recherche HAL
 //====================================================
 
-async function searchHalByDoi(doi){
-
-    if(!doi){
+async function searchHalByDoi(doi) {
+    if (!doi) {
         return null;
     }
 
-    const cleanDoi =
-        doi.replace(
-            "https://doi.org/",
-            ""
-        );
+    const cleanDoi = doi.replace("https://doi.org/", "");
+    const url = "https://api.archives-ouvertes.fr/search/?" + "q=doiId_s:%22" + encodeURIComponent(cleanDoi) + "%22" + "&fl=docid,halId_s,uri_s,collCode_s" + "&rows=10" + "&wt=json";
 
-    const url =
-        "https://api.archives-ouvertes.fr/search/?" +
-        "q=doiId_s:%22" +
-        encodeURIComponent(cleanDoi) +
-        "%22" +
-        "&fl=docid,halId_s,uri_s,collCode_s" +
-        "&rows=10" +
-        "&wt=json";
+    const response = await fetch(url);
+    const data = await response.json();
 
-    const response =
-        await fetch(url);
-
-    const data =
-        await response.json();
-
-    if(
-        data.response &&
-        data.response.numFound > 0
-    ){
+    if (data.response && data.response.numFound > 0) {
         return data.response.docs[0];
     }
 
@@ -1373,593 +1289,304 @@ async function searchHalByDoi(doi){
 }
 
 // Recherche par titre si doi ne donne rien
-async function searchHalByTitle(title){
-
-    if(!title){
+async function searchHalByTitle(title) {
+    if (!title) {
         return null;
     }
 
-    const url =
-        "https://api.archives-ouvertes.fr/search/?" +
-        "q=title_t:(" +
-        encodeURIComponent(title) +
-        ")" +
-        "&fl=docid,halId_s,uri_s,title_s,collCode_s" +
-        "&rows=5" +
-        "&wt=json";
+    const url = "https://api.archives-ouvertes.fr/search/?" + "q=title_t:(" + encodeURIComponent(title) + ")" + "&fl=docid,halId_s,uri_s,title_s,collCode_s" + "&rows=5" + "&wt=json";
 
-    const response =
-        await fetch(url);
+    const response = await fetch(url);
+    const data = await response.json();
 
-    const data =
-        await response.json();
-
-    if(
-        data.response &&
-        data.response.numFound > 0
-    ){
+    if (data.response && data.response.numFound > 0) {
         return data.response.docs[0];
     }
 
     return null;
 }
+
 //====================================================
 // Parsing
 //====================================================
 
-function parseWork(work){
-
+function parseWork(work) {
     const authors = [];
     const institutions = new Set();
 
     const inriaRors = new Set();
     const inriaAcronyms = new Set();
     const inriaCentres = new Set();
-    const bestOaLocation =
-        work.best_oa_location || null;
+    const bestOaLocation = work.best_oa_location || null;
 
-    (work.authorships || [])
-        .forEach(auth => {
+    (work.authorships || []).forEach(auth => {
+        const author = auth.author?.display_name;
 
-        const author =
-            auth.author?.display_name;
-
-        if(author){
+        if (author) {
             authors.push(author);
         }
 
-        (auth.institutions || [])
-            .forEach(inst => {
-
-            if(inst.display_name){
-                institutions.add(
-                    inst.display_name
-                );
+        (auth.institutions || []).forEach(inst => {
+            if (inst.display_name) {
+                institutions.add(inst.display_name);
             }
 
             const ror = inst.ror;
 
-            if(
-                ror &&
-                rorMapping[ror]
-            ){
-
+            if (ror && rorMapping[ror]) {
                 inriaRors.add(ror);
-
-                inriaAcronyms.add(
-                    rorMapping[ror]
-                    .acronyme
-                );
-
-                inriaCentres.add(
-                    rorMapping[ror]
-                    .centre
-                );
+                inriaAcronyms.add(rorMapping[ror].acronyme);
+                inriaCentres.add(rorMapping[ror].centre);
             }
-
         });
-
     });
 
-    const primaryLocation =
-        work.primary_location || {};
+    const primaryLocation = work.primary_location || {};
 
     return {
-
         id: work.id,
-
-        title:
-            work.title,
-
-        pdf_url:
-            bestOaLocation?.pdf_url
-            ||
-            bestOaLocation?.landing_page_url
-            ||
-            "",
-
-        source:
-            primaryLocation
-                ?.source
-                ?.display_name
-            ||
-            primaryLocation
-                ?.raw_source_name
-            ||
-            "",
-
-        publication_year:
-            work.publication_year,
-
-        type:
-            work.type,
-
-        doi:
-            work.doi,
-
-        authors:
-            authors.join("; "),
-
-        institutions:
-            [...institutions]
-            .sort()
-            .join("; "),
-
-        inria_ror:
-            [...inriaRors]
-            .sort()
-            .join("; "),
-
-        inria_acronyme:
-            [...inriaAcronyms]
-            .sort()
-            .join("; "),
-
-        inria_centre:
-            [...inriaCentres]
-            .sort()
-            .join("; ")
+        title: work.title,
+        pdf_url: bestOaLocation?.pdf_url || bestOaLocation?.landing_page_url || "",
+        source: primaryLocation?.source?.display_name || primaryLocation?.raw_source_name || "",
+        publication_year: work.publication_year,
+        type: work.type,
+        doi: work.doi,
+        authors: authors.join("; "),
+        institutions: [...institutions].sort().join("; "),
+        inria_ror: [...inriaRors].sort().join("; "),
+        inria_acronyme: [...inriaAcronyms].sort().join("; "),
+        inria_centre: [...inriaCentres].sort().join("; ")
     };
 }
-
 
 //====================================================
 // Affichage tableau
 //====================================================
 
-function displayRows(rows){
-
-    const tbody =
-        document.querySelector(
-            "#resultsTable tbody"
-        );
-
+function displayRows(rows) {
+    const tbody = document.querySelector("#resultsTable tbody");
     tbody.innerHTML = "";
 
     rows.forEach(row => {
-
-        const tr =
-            document.createElement("tr");
-
-        const openAlexId =
-            row.id
-            ? row.id.split("/").pop()
-            : "";
+        const tr = document.createElement("tr");
+        const openAlexId = row.id ? row.id.split("/").pop() : "";
 
         tr.innerHTML = `
-
-        <td>${row.title || ""}</td>
-
-        <td>
-        ${
-        row.id
-        ? `<a href="${row.id}" target="_blank">${openAlexId}</a>`
-        : ""
-        }
-        </td>
-
-        <td>
-        ${
-        row.doi
-        ? `<a href="${row.doi}" target="_blank">${row.doi}</a>`
-        : ""
-        }
-        </td>
-
-        <td>
-        ${
-        row.pdf_url
-        ? `<a href="${row.pdf_url}" target="_blank">PDF</a>`
-        : ""
-        }
-        </td>        
-
-        <td>${row.publication_year || ""}</td>
-
-        <td>${row.source || ""}</td>
-
-        <td>${row.type || ""}</td>
-
-        <td>${row.authors || ""}</td>
-
-        <td>${row.institutions || ""}</td>
-
-        <td>${row.inria_acronyme || ""}</td>
-
-        <td>${row.inria_centre || ""}</td>
-
-        <td>
-        ${
-        row.hal_url
-        ? `<a href="${row.hal_url}" target="_blank">${row.hal_id}</a>`
-        : ""
-        }
-        </td>
-
-        <td>${row.hal_match || ""}</td>
-        <td>${row.collection_found || ""}</td>
-
+            <td>${row.title || ""}</td>
+            <td>${row.id ? `<a href="${row.id}" target="_blank">${openAlexId}</a>` : ""}</td>
+            <td>${row.doi ? `<a href="${row.doi}" target="_blank">${row.doi}</a>` : ""}</td>
+            <td>${row.pdf_url ? `<a href="${row.pdf_url}" target="_blank">PDF</a>` : ""}</td>
+            <td>${row.publication_year || ""}</td>
+            <td>${row.source || ""}</td>
+            <td>${row.type || ""}</td>
+            <td>${row.authors || ""}</td>
+            <td>${row.institutions || ""}</td>
+            <td>${row.inria_acronyme || ""}</td>
+            <td>${row.inria_centre || ""}</td>
+            <td>${row.hal_url ? `<a href="${row.hal_url}" target="_blank">${row.hal_id}</a>` : ""}</td>
+            <td>${row.hal_match || ""}</td>
+            <td>${row.collection_found || ""}</td>
         `;
         tbody.appendChild(tr);
-
     });
-
 }
-
 
 //====================================================
 // Analyse
 //====================================================
 
-document
-.getElementById("analyseBtn")
-.addEventListener(
-"click",
-async () => {
-
-    const status =
-        document.getElementById(
-            "status"
-        );
-
+document.getElementById("analyseBtn").addEventListener("click", async () => {
+    const status = document.getElementById("status");
     currentRows = [];
 
-    document.getElementById(
-        "exportBtn"
-    ).style.display = "none";
-    
-    document
-        .getElementById("exportCheckBtn")
-        .style.display =
-            "none";
+    document.getElementById("exportBtn").style.display = "none";
+    document.getElementById("exportCheckBtn").style.display = "none";
+    document.getElementById("halCollectionContainer").style.display = "none";
 
-    try{
+    try {
+        const apiUrl = document.getElementById("apiInput").value.trim();
 
-        const apiUrl =
-            document.getElementById("apiInput")
-            .value
-            .trim();
+        if (apiUrl) {
+            status.textContent = "Chargement depuis API OpenAlex...";
+            const works = await fetchAllOpenAlexResults(apiUrl);
 
-        if(apiUrl){
-
-            status.textContent =
-                "Chargement depuis API OpenAlex...";
-
-            const works =
-                await fetchAllOpenAlexResults(apiUrl);
-
-            for(const work of works){
-
-                const row =
-                    parseWork(work);
-
+            for (const work of works) {
+                const row = parseWork(work);
                 currentRows.push(row);
             }
-
         } else {
+            const zone = document.getElementById("pasteZone");
+            const html = zone.innerHTML;
+            const text = zone.innerText;
 
-            const zone =
-                document.getElementById(
-                    "pasteZone"
-                );
+            let links = extractOpenAlexLinks(html);
 
-            const html =
-                zone.innerHTML;
-
-            const text =
-                zone.innerText;
-
-            let links =
-                extractOpenAlexLinks(html);
-
-            if(links.length === 0){
-                links =
-                    extractWorkIds(text);
+            if (links.length === 0) {
+                links = extractWorkIds(text);
             }
 
-            status.textContent =
-                `${links.length} publication(s) détectée(s) et en cours de traitement...`;
+            status.textContent = `${links.length} publication(s) détectée(s) et en cours de traitement...`;
 
-            for(const item of links){
-
-                try{
-                    const work =
-                        await getWork(item.url);
-
-                    const row =
-                        parseWork(work);
-
+            for (const item of links) {
+                try {
+                    const work = await getWork(item.url);
+                    const row = parseWork(work);
                     currentRows.push(row);
-                }
-                catch(err){
+                } catch (err) {
                     console.error(item.url, err);
                 }
             }
         }
 
         displayRows(currentRows);
-        
+        status.textContent = `${currentRows.length} publication(s) traitée(s)`;
 
-        status.textContent =
-            `${currentRows.length} publication(s) traitée(s)`;
-
-        if(currentRows.length > 0){
-
-            document
-            .getElementById("halBtn")
-            .style.display =
-                "inline-block";
-        }            
-
-        document.getElementById(
-            "exportBtn"
-        ).style.display = "inline-block";   
-        
-        document
-            .getElementById("exportCheckBtn")
-            .style.display =
-                "inline-block";
-
-    }
-    catch(err){
-
+        if (currentRows.length > 0) {
+            document.getElementById("halCollectionContainer").style.display = "block";
+            document.getElementById("halBtn").style.display = "inline-block";
+            document.getElementById("exportBtn").style.display = "inline-block";
+            document.getElementById("exportCheckBtn").style.display = "inline-block";
+        }
+    } catch (err) {
         console.error(err);
-
-        status.textContent =
-            "Erreur";
-
+        status.textContent = "Erreur";
     }
-
 });
-
 
 //====================================================
 // Traitement de HAL
 //====================================================
-document
-.getElementById("halBtn")
-.addEventListener(
-"click",
-async () => {
+document.getElementById("halBtn").addEventListener("click", async () => {
+    const status = document.getElementById("status");
+    const wantedCollection = document.getElementById("halCollectionInput").value.trim().toUpperCase();
 
-    const status =
-        document.getElementById(
-            "status"
-        );
-
-    const wantedCollection =
-    document.getElementById("halCollectionInput")
-    .value
-    .trim()
-    .toUpperCase();
-
-    status.textContent =
-        "Recherche dans HAL (patience, env. 30 sec pour 100 références)...";
-
+    status.textContent = "Recherche dans HAL (patience, env. 30 sec pour 100 références)...";
     let found = 0;
 
-    for(const row of currentRows){
-
-        try{
-
-
-            let hal =
-                await searchHalByDoi(
-                    row.doi
-                );
-
+    for (const row of currentRows) {
+        try {
+            let hal = await searchHalByDoi(row.doi);
             let matchType = "";
 
-            if(hal){
-
+            if (hal) {
                 matchType = "DOI";
-
-            }
-            else{
-
-                hal =
-                    await searchHalByTitle(
-                        row.title
-                    );
-
-                if(hal){
+            } else {
+                hal = await searchHalByTitle(row.title);
+                if (hal) {
                     matchType = "Titre";
                 }
-                
-
             }
 
-            if(hal){
-
+            if (hal) {
                 found++;
+                row.hal_docid = hal.docid;
+                row.hal_id = hal.halId_s;
+                row.hal_url = hal.uri_s;
+                row.hal_match = matchType;
 
-                row.hal_docid =
-                    hal.docid;
+                const collections = hal.collCode_s || [];
+                const collectionList = Array.isArray(collections) ? collections : [collections];
+                row.hal_collections = collectionList.join("; ");
 
-                row.hal_id =
-                    hal.halId_s;
-
-                row.hal_url =
-                    hal.uri_s;
-
-                row.hal_match =
-                    matchType;
-
-                const collections =
-                    hal.collCode_s || [];
-
-                const collectionList =
-                    Array.isArray(collections)
-                        ? collections
-                        : [collections];
-
-                row.hal_collections =
-                    collectionList.join("; ");
-
-                if(wantedCollection){
-
-                    row.collection_found =
-                        collectionList
-                            .map(c => c.toUpperCase())
-                            .includes(wantedCollection)
-                            ? "Oui"
-                            : "Non";
-
-                }
-                else{
-
+                if (wantedCollection) {
+                    row.collection_found = collectionList.map(c => c.toUpperCase()).includes(wantedCollection) ? "Oui" : "Non";
+                } else {
                     row.collection_found = "";
-
                 }
-            }
-            else{
-
-                row.hal_match =
-                    "Non trouvé";
+            } else {
+                row.hal_match = "Non trouvé";
                 row.hal_collections = "";
                 row.collection_found = "";
-            }                    
-
+            }
+        } catch (error) {
+            console.error(row.doi, error);
         }
-        catch(error){
-
-            console.error(
-                row.doi,
-                error
-            );
-
-        }
-
     }
 
-    currentRows.sort(
-        (a, b) =>
-            (a.title || "")
-            .localeCompare(
-                b.title || "",
-                "fr",
-                { sensitivity: "base" }
-            )
-    );
-
+    currentRows.sort((a, b) => (a.title || "").localeCompare(b.title || "", "fr", { sensitivity: "base" }));
     displayRows(currentRows);
-
-    status.textContent =
-        `${found} publication(s) trouvée(s) dans HAL`;
-
+    status.textContent = `${found} publication(s) trouvée(s) dans HAL`;
 });
 
 //====================================================
 // Export Excel
 //====================================================
 
-document
-.getElementById("exportBtn")
-.addEventListener(
-"click",
-() => {
+const columnOrder = [
+    "Titre", "OpenAlex", "DOI", "PDF (si best_oa_location n'est pas null)",
+    "Année", "Source", "Type", "Auteurs", "Institutions",
+    "Equipe(s) Inria dans OpenAlex", "Centre(s) Inria dans OpenAlex",
+    "HAL url", "Trouvé dans HAL par", "Collection demandée trouvée?",
+    "hal_id", "hal_docid", "hal_collections"
+];
 
-    if(
-        currentRows.length === 0
-    ){
-        alert(
-            "Aucune donnée"
-        );
+document.getElementById("exportBtn").addEventListener("click", () => {
+    if (currentRows.length === 0) {
+        alert("Aucune donnée");
         return;
     }
 
-    const ws =
-        XLSX.utils
-        .json_to_sheet(
-            currentRows
-        );
+    const dataForExport = currentRows.map(row => ({
+        "Titre": row.title || "",
+        "OpenAlex": row.id || "",
+        "DOI": row.doi || "",
+        "PDF (si best_oa_location n'est pas null)": row.pdf_url || "",
+        "Année": row.publication_year || "",
+        "Source": row.source || "",
+        "Type": row.type || "",
+        "Auteurs": row.authors || "",
+        "Institutions": row.institutions || "",
+        "Equipe(s) Inria dans OpenAlex": row.inria_acronyme || "",
+        "Centre(s) Inria dans OpenAlex": row.inria_centre || "",
+        "HAL url": row.hal_url || "",
+        "Trouvé dans HAL par": row.hal_match || "",
+        "Collection demandée trouvée?": row.collection_found || "",
+        "hal_id": row.hal_id || "",
+        "hal_docid": row.hal_docid || "",
+        "hal_collections": row.hal_collections || ""
+    }));
 
-    const wb =
-        XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(
-        wb,
-        ws,
-        "OpenAlex"
-    );
-
-    XLSX.writeFile(
-        wb,
-        "openalex_metadonnees_des_alertes.xlsx"
-    );
-
+    const ws = XLSX.utils.json_to_sheet(dataForExport, { header: columnOrder });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "OpenAlex");
+    XLSX.writeFile(wb, "openalex_metadonnees_des_alertes.xlsx");
 });
 
+document.getElementById("exportCheckBtn").addEventListener("click", () => {
+    const rowsToCheck = currentRows.filter(row => row.hal_match === "Titre" || row.hal_match === "Non trouvé");
 
-
-document
-.getElementById("exportCheckBtn")
-.addEventListener(
-"click",
-() => {
-
-    const rowsToCheck =
-        currentRows.filter(
-            row =>
-                row.hal_match === "Titre"
-                ||
-                row.hal_match === "Non trouvé"
-        );
-
-    if(rowsToCheck.length === 0){
-
-        alert(
-            "Aucune référence à vérifier"
-        );
-
+    if (rowsToCheck.length === 0) {
+        alert("Aucune référence à vérifier");
         return;
-
     }
 
-    const ws =
-        XLSX.utils
-        .json_to_sheet(
-            rowsToCheck
-        );
+    const dataForExport = rowsToCheck.map(row => ({
+        "Titre": row.title || "",
+        "OpenAlex": row.id || "",
+        "DOI": row.doi || "",
+        "PDF (si best_oa_location n'est pas null)": row.pdf_url ? "Disponible" : "",
+        "Année": row.publication_year || "",
+        "Source": row.source || "",
+        "Type": row.type || "",
+        "Auteurs": row.authors || "",
+        "Institutions": row.institutions || "",
+        "Equipe(s) Inria dans OpenAlex": row.inria_acronyme || "",
+        "Centre(s) Inria dans OpenAlex": row.inria_centre || "",
+        "HAL url": row.hal_url || "",
+        "Trouvé dans HAL par": row.hal_match || "",
+        "Collection demandée trouvée?": row.collection_found || "",
+        "hal_collections": row.hal_collections || "",
+        "hal_docid": row.hal_docid || "",
+        "hal_id": row.hal_id || ""
+        
+        
+    }));
 
-    const wb =
-        XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(
-        wb,
-        ws,
-        "A_verifier"
-    );
-
-    XLSX.writeFile(
-        wb,
-        "publications_a_verifier.xlsx"
-    );
-
+    const ws = XLSX.utils.json_to_sheet(dataForExport, { header: columnOrder });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "A_verifier");
+    XLSX.writeFile(wb, "publications_a_verifier.xlsx");
 });
-
 </script>
-
 </body>
 </html>
-
