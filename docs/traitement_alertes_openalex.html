@@ -64,6 +64,8 @@ td{
 
 <h1>Analyse OpenAlex</h1>
 
+<p><a href="https://github.com/Inria-Datalake/Inria_Hal_utilities/blob/main/docs/Mode_emploi_Traitement_Alertes_OpenAlex.md" target="_blank">Comment utiliser ce formulaire ?</a></p>
+
 <p>Saisir une API OpenAlex :</p>
 
 <input
@@ -1514,10 +1516,10 @@ document.getElementById("halBtn").addEventListener("click", async () => {
 
 const columnOrder = [
     "Titre", "OpenAlex", "DOI", "PDF (si best_oa_location n'est pas null)",
-    "Année", "Source", "Type", "Auteurs", "Institutions",
+    "Année", "Source", "Type", "Auteurs", "Institutions","Ror_inria",
     "Equipe(s) Inria dans OpenAlex", "Centre(s) Inria dans OpenAlex",
-    "HAL url", "Trouvé dans HAL par", "Collection demandée trouvée?",
-    "hal_id", "hal_docid", "hal_collections"
+     "Trouvé dans HAL par","HAL url", "Collection demandée trouvée?",
+     "hal_collections", "hal_docid", "hal_id",
 ];
 
 document.getElementById("exportBtn").addEventListener("click", () => {
@@ -1536,14 +1538,16 @@ document.getElementById("exportBtn").addEventListener("click", () => {
         "Type": row.type || "",
         "Auteurs": row.authors || "",
         "Institutions": row.institutions || "",
+        "Ror_inria": row.inria_ror || "",
         "Equipe(s) Inria dans OpenAlex": row.inria_acronyme || "",
         "Centre(s) Inria dans OpenAlex": row.inria_centre || "",
         "HAL url": row.hal_url || "",
         "Trouvé dans HAL par": row.hal_match || "",
         "Collection demandée trouvée?": row.collection_found || "",
-        "hal_id": row.hal_id || "",
+        "hal_collections": row.hal_collections || "",
         "hal_docid": row.hal_docid || "",
-        "hal_collections": row.hal_collections || ""
+        "hal_id": row.hal_id || "",
+        
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataForExport, { header: columnOrder });
@@ -1570,6 +1574,7 @@ document.getElementById("exportCheckBtn").addEventListener("click", () => {
         "Type": row.type || "",
         "Auteurs": row.authors || "",
         "Institutions": row.institutions || "",
+        "Ror_inria": row.inria_ror || "",
         "Equipe(s) Inria dans OpenAlex": row.inria_acronyme || "",
         "Centre(s) Inria dans OpenAlex": row.inria_centre || "",
         "HAL url": row.hal_url || "",
