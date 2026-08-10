@@ -7,7 +7,7 @@ Liste des champs pour l’API de HAL : https://api.archives-ouvertes.fr/docs/sea
 ## Qu’est-ce qu’une interrogation à facettes avec pivots ?
 
 L’interrogation avec facettes à pivot permet de combiner 2 champs de HAL dans la réponse.
-Par exemple : pour chaque année, combien d’articles et de communications dans un congrès sont déposés dans le portail « Hal » chaque année.
+Par exemple : combien d’articles et de communications dans un congrès sont déposés dans le portail « Hal » chaque année.
 L’API comporte 2 parties : 
 1. les critères de recherche (sections q= et fq=) « portail Hal » (instance_s :hal), « année de publication de 2023 à 2026 » (publicationDateY_ :[2023 TO 2026]) et on restreint au types de documents « articles ou communications dans un congrès » (docType_s :(ART OR COMM))
 2. les champs à combiner pour afficher le résultat : « année de publication » (publicationDateY_i ) et « type de document » (docType_s).
