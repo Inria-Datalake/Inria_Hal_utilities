@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constructeur et visualisation des données de l'API</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --error-color: #e74c3c;
+            --light-gray: #ecf0f1;
+            --medium-gray: #bdc3c7;
+            --dark-gray: #7f8c8d;
+            --white: #ffffff;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --border-radius: 4px;
+            --spacing-small: 8px;
+            --spacing-medium: 12px;
+            --spacing-large: 16px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 15px;
+            line-height: 1.4;
+            color: var(--primary-color);
+            background-color: #f9f9f9;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--medium-gray);
+            padding-bottom: var(--spacing-small);
+            margin-bottom: var(--spacing-medium);
+            font-size: 1.5em;
+        }
+
+        h2 {
+            color: var(--secondary-color);
+            margin-top: var(--spacing-large);
+            margin-bottom: var(--spacing-small);
+            font-size: 1.2em;
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-medium);
+            background-color: var(--white);
+            padding: var(--spacing-medium);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: var(--spacing-small);
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 0.9em;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            max-width: 200px;
+            padding: 8px;
+            margin: 0;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            transition: border 0.2s;
+        }
+
+        input[type="text"]:focus, select:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 1px rgba(52, 152, 219, 0.2);
+        }
+
+
+
+        button {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            padding: 8px 12px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: var(--spacing-small);
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .export-button {
+            background-color: var(--success-color);
+        }
+
+        .export-button:hover {
+            background-color: #219653;
+        }
+
+        .error {
+            color: var(--error-color);
+            margin: var(--spacing-small) 0;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .api-url {
+            font-family: 'Courier New', monospace;
+            background-color: var(--light-gray);
+            padding: 10px;
+            border-radius: var(--border-radius);
+            margin: var(--spacing-medium) 0;
+            word-break: break-all;
+            border-left: 3px solid var(--secondary-color);
+            font-size: 13px;
+        }
+
+        .field-info {
+            margin: var(--spacing-medium) 0;
+            padding: var(--spacing-small);
+            background-color: var(--light-gray);
+            border-radius: var(--border-radius);
+            border-left: 3px solid var(--success-color);
+            font-size: 0.9em;
+        }
+
+        .field-info h3 {
+            margin: 0 0 var(--spacing-small) 0;
+            color: var(--success-color);
+            font-size: 1em;
+        }
+
+        .container {
+            max-width: 100%;
+            overflow-x: auto;
+            margin-top: var(--spacing-medium);
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: var(--spacing-small);
+            box-shadow: var(--shadow);
+            background-color: var(--white);
+            font-size: 13px;
+        }
+
+        th, td {
+            border: 1px solid var(--medium-gray);
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f9ff;
+        }
+
+        tr:hover {
+            background-color: #e6f2ff;
+        }
+
+        tfoot td {
+            background-color: var(--light-gray);
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .selection-buttons {
+            margin: var(--spacing-medium) 0;
+            display: flex;
+            gap: 8px;
+        }
+
+        .clickable {
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .clickable:hover {
+            color: #1a5276;
+            text-decoration: underline;
+        }
+
+        /* Style pour les lignes de critères */
+        .criterion-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: var(--spacing-small);
+        }
+
+        .criterion-line label {
+            font-weight: 600;
+            color: var(--primary-color);
+            min-width: 120px;
+            font-size: 0.9em;
+        }
+
+
+        /* Règle spécifique pour l'input de l'URL (pour forcer la largeur à 100%) */
+        #apiUrl {
+            width: 100% !important;
+            max-width: none !important; /* Annule max-width: 200px */
+            box-sizing: border-box !important;
+            margin-bottom: 8px !important;
+        }
+
+        /* Ligne de séparation épaisse et sombre entre les sections du formulaire */
+        hr.form-separator {
+            border: none;
+            height: 2px;
+            background-color: var(--dark-gray); /* Couleur sombre */
+            margin: 12px 0; /* Espacement vertical */
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .criterion-line {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+
+            input[type="text"], select {
+                width: 100%;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Constructeur et visualisation des données de l'API HAL utilisant les <a href="https://api.archives-ouvertes.fr/docs/search/?#facet" target="_blank">facettes avec pivots</a> </h1>
+    <P>Génère un tableau avec valeurs cliquables.<br />
+    </P>
+
+     <hr class="form-separator">
+
+
+    <div class="form-group">
+    <label for="apiUrl">Saisir l'URL complète de l'API avec <a href="https://api.archives-ouvertes.fr/docs/search/?#facet" target="_blank">pivots</a> :</label>
+    <input
+        type="text"
+        id="apiUrl"
+        placeholder="Exemple : https://api.archives-ouvertes.fr/search/?q=collCode_s:INRIA&rows=0&indent=true&facet=true&facet.pivot=publicationDateY_i,submitType_s&facet.sort=publicationDateY_i&wt=json"
+    >
+    <button onclick="fetchDataFromInput()" style="display: block; margin: 0;">Charger les données</button>
+</div>
+
+    
+
+<div style="display: flex; align-items: center; margin: 15px 0 10px 0;">
+    <span style="flex: none; margin-right: 15px; font-weight: 600; color: var(--primary-color); font-size: 1.1em;">OU</span>
+    <hr style="flex: 1; border: none; height: 1px; background-color: var(--dark-gray); opacity: 0.8;">
+</div>
+
+    <div class="form-group">
+        <label>Construire la requête (critères de recherche) :</label>
+
+        <!-- Critère principal (q) -->
+        <div class="criterion-line">
+            <label for="queryField1">Critère principal (q) :</label>
+            <select id="queryField1" onchange="clearCustomFieldIfNeeded()">
+                <option value="">-- Sélectionnez un champ --</option>
+            </select>
+            <input type="text" id="queryValue1" placeholder="Exemple : file">
+        </div>
+
+        <!-- Filtre 1 (fq) -->
+        <div class="criterion-line">
+            <label for="queryField2">Filtre 1 (fq) :</label>
+            <select id="queryField2" onchange="clearCustomFieldIfNeeded()">
+                <option value="">-- Sélectionnez un champ --</option>
+            </select>
+            <input type="text" id="queryValue2" placeholder="Exemple :(ART OR COMM)">
+        </div>
+
+        <!-- Filtre 2 (fq) -->
+        <div class="criterion-line">
+            <label for="queryField3">Filtre 2 (fq) :</label>
+            <select id="queryField3" onchange="clearCustomFieldIfNeeded()">
+                <option value="">-- Sélectionnez un champ --</option>
+            </select>
+            <input type="text" id="queryValue3" placeholder="Exemple : [2023 TO 2026]">
+        </div>
+
+        <!-- Champ personnalisé (q si utilisé seul, sinon fq) -->
+        <div class="criterion-line">
+            <label for="customQueryField"><a href="https://api.archives-ouvertes.fr/docs/search/?schema=fields#fields" target="_blank">Champ personnalisé</a> (fq) :</label>
+            <input type="text" id="customQueryField" placeholder="Exemple : instance_s">
+            <input type="text" id="customQueryValue" placeholder="Exemple : valeur">
+        </div>
+    </div>
+
+    <hr class="form-separator">
+
+    <!-- Puis, définir les champs pour l'affichage des lignes et colonnes du résultat -->
+    <div class="form-group">
+        <label>Et définir les pivots (champs Hal à utiliser pour l'affichage des valeurs du tableau)&nbsp;(<a href="https://api.archives-ouvertes.fr/docs/search/?schema=fields#fields" target="_blank">voir liste des champs de la doc API</a>)</label>
+        <div style="display: flex; gap: 20px; margin-bottom: var(--spacing-small);">
+            
+            <div style="display: flex; gap: 5px;">
+                <label for="rowField">Champ pour les lignes <br />(exemple : submitType_s, docType_s) :</label>
+                <input type="text" id="rowField" placeholder="Exemple : submitType_s">
+            </div>
+            <div style="display: flex; gap: 5px;">
+                <label for="columnField">Champ pour les colonnes <br /> (exemple : publicationDateY_i):</label>
+                <input type="text" id="columnField" placeholder="Exemple : publicationDateY_i">
+            </div>
+        </div>
+    </div>
+    <hr class="form-separator">
+    <button onclick="buildAndFetchData()">Construire l'URL et charger les données</button>
+
+
+    <div id="error" class="error" style="margin-top: 10px;"></div>
+
+    <div class="form-group">
+        <label>URL de l'API générée :</label>
+        <div id="generatedUrl" class="api-url"></div>
+    </div>
+
+    <div id="fieldInfo" class="field-info" style="display: none;">
+        <h3>Structure du tableau</h3>
+        <p><strong>Lignes :</strong> <span id="rowFieldInfo"></span></p>
+        <p><strong>Colonnes :</strong> <span id="columnFieldInfo"></span></p>
+    </div>
+
+
+    <div class="selection-buttons">
+        <button onclick="selectAll(true)">Totaux : tout cocher</button>
+        <button onclick="selectAll(false)">Totaux : tout décocher</button>
+        <button onclick="exportToCSV()" class="export-button">Exporter vers CSV</button>
+    </div>
+
+    <div class="container" id="tableContainer">
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>Sélection</th>
+                    <th id="pivotFieldHeader" class="row-header">Type</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2">Total (lignes sélectionnées)</td>
+                </tr>
+            </tfoot>
+        </table>
+        <i>Conçu par Inria (Information et édition scientifiques) avec l'Assistant Numérique</i>
+    </div>
+
+    
+    <script>
+        // Liste des champs disponibles, triée par ordre alphabétique
+        const allFields = [
+            { id: "abstract_s", label: "Résumé", searchField: "abstract_t" },
+            { id: "anrProject_s", label: "ANR (code projet)", searchField: "anrProject_t" },
+            { id: "authFullName_s", label: "Auteur (Prénom Nom)", isArray: true, addQuotes: true, searchField: "authFullName_t" },
+            { id: "collCode_s", label: "Collection", searchField: "collCode_s" },
+            { id: "collaboration_s", label: "Collaboration/Projet", searchField: "collaboration_t" },
+            { id: "conferenceStartDateY_i", label: "Conférence (Année de début)", searchField: "conferenceStartDateY_i" },
+            { id: "docType_s", label: "Type de document", searchField: "docType_s" },
+            { id: "funding_s", label: "Financement", searchField: "funding_t" },
+            { id: "fulltext_t", label: "Texte intégral des PDF" },
+            { id: "halId_s", label: "Hal ID", checked: true, searchField: "halId_s" },
+            { id: "infrastructure_s", label: "Infrastructure", searchField: "infrastructure_t" },
+            { id: "instance_s", label: "Portail (instance)", searchField: "instance_s" },
+            { id: "journalId_i", label: "Revue (ID AuréHal)", searchField: "journalId_i" },
+            { id: "journalTitle_s", label: "Revue (Titre)", searchField: "journalTitle_t" },
+            { id: "keyword_s", label: "Mots-clés", isArray: true, addQuotes: true, searchField: "keyword_t" },
+            { id: "publisher_s", label: "Editeur", isArray: true, addQuotes: true, searchField: "publisher_t" },
+            { id: "publicationDateY_i", label: "Année de publication", checked: true, searchField: "publicationDateY_i" },
+            { id: "rteamStructAcronym_s", label: "Equipe de recherche (Acronyme)", searchField: "rteamStructAcronym_t" },
+            { id: "structId_i", label: "Structure (ID)", searchField: "structId_i" },
+            { id: "subTitle_s", label: "Sous-Titre", searchField: "subTitle_t" },
+            { id: "submitType_s", label: "Type de dépôt", searchField: "submitType_s" },
+            { id: "submittedDateY_i", label: "Année de dépôt", searchField: "submittedDateY_i" },
+            { id: "title_s", label: "Titre", checked: true, addQuotes: true, searchField: "title_t" },
+            { id: "uri_s", label: "URI", mandatory: true, displayOnly: true, searchField: "uri_s" },
+            { id: "volume_s", label: "Volume", searchField: "volume_s" }
+        ];
+
+        // Remplir les menus déroulants des champs
+        function populateQueryFieldDropdowns() {
+            const dropdowns = [
+                document.getElementById('queryField1'),
+                document.getElementById('queryField2'),
+                document.getElementById('queryField3')
+            ];
+
+            const sortedFields = [...allFields].sort((a, b) => a.label.localeCompare(b.label));
+
+            dropdowns.forEach(dropdown => {
+                dropdown.innerHTML = '<option value="">-- Sélectionnez un champ --</option>';
+                sortedFields.forEach(field => {
+                    const option = document.createElement('option');
+                    option.value = field.id;
+                    option.textContent = `${field.label} (${field.id})`;
+                    dropdown.appendChild(option);
+                });
+            });
+        }
+
+        // Effacer le champ personnalisé si un champ prédéfini est sélectionné
+        function clearCustomFieldIfNeeded() {
+            const dropdown1 = document.getElementById('queryField1');
+            const dropdown2 = document.getElementById('queryField2');
+            const dropdown3 = document.getElementById('queryField3');
+            const customFieldInput = document.getElementById('customQueryField');
+            const customValueInput = document.getElementById('customQueryValue');
+
+            if (dropdown1.value || dropdown2.value || dropdown3.value) {
+                customFieldInput.value = '';
+                customValueInput.value = '';
+            } else if (document.getElementById('queryValue1').value.trim() !== '') {
+                customFieldInput.value = '';
+                customValueInput.value = '';
+            }
+        }
+
+        // Fonction pour déterminer si un champ nécessite des guillemets
+        function needsQuotes(fieldId) {
+            const field = allFields.find(f => f.id === fieldId);
+            return field ? field.addQuotes : false;
+        }
+
+        // Récupérer les critères de recherche
+        function getQueryCriteria() {
+            const mainField = document.getElementById('queryField1').value;
+            const mainValue = document.getElementById('queryValue1').value.trim();
+            const filterField2 = document.getElementById('queryField2').value;
+            const filterValue2 = document.getElementById('queryValue2').value.trim();
+            const filterField3 = document.getElementById('queryField3').value;
+            const filterValue3 = document.getElementById('queryValue3').value.trim();
+            const customField = document.getElementById('customQueryField').value.trim();
+            const customValue = document.getElementById('customQueryValue').value.trim();
+
+            const criteria = {
+                main: null,
+                filters: []
+            };
+
+            // Critère principal (q)
+            if (mainField && mainValue) {
+                criteria.main = needsQuotes(mainField) ? `${mainField}:"${mainValue}"` : `${mainField}:${mainValue}`;
+            }
+
+            // Filtres (fq)
+            if (filterField2 && filterValue2) {
+                criteria.filters.push(needsQuotes(filterField2) ? `${filterField2}:"${filterValue2}"` : `${filterField2}:${filterValue2}`);
+            }
+
+            if (filterField3 && filterValue3) {
+                criteria.filters.push(needsQuotes(filterField3) ? `${filterField3}:"${filterValue3}"` : `${filterField3}:${filterValue3}`);
+            }
+
+            // Champ personnalisé
+            if (customField && customValue) {
+                const customCriteria = needsQuotes(customField) ? `${customField}:"${customValue}"` : `${customField}:${customValue}`;
+                if (!criteria.main) {
+                    criteria.main = customCriteria;
+                } else {
+                    criteria.filters.push(customCriteria);
+                }
+            }
+
+            return criteria;
+        }
+
+        // Construire et exécuter la requête
+        function buildAndFetchData() {
+            const criteria = getQueryCriteria();
+            const rowField = document.getElementById('rowField').value.trim();
+            const columnField = document.getElementById('columnField').value.trim();
+            const errorDiv = document.getElementById('error');
+
+            errorDiv.textContent = "";
+
+            if (!criteria.main) {
+                errorDiv.textContent = "Veuillez saisir un critère principal (q), soit via un champ prédéfini, soit via un champ personnalisé.";
+                return;
+            }
+
+            if (!rowField || !columnField) {
+                errorDiv.textContent = "Veuillez spécifier les champs pour les lignes et les colonnes.";
+                return;
+            }
+
+            const baseUrl = "https://api.archives-ouvertes.fr/search/";
+            const queryParams = new URLSearchParams();
+
+            queryParams.append('q', criteria.main);
+
+            criteria.filters.forEach(filter => {
+                queryParams.append('fq', filter);
+            });
+
+            queryParams.append('rows', '0');
+            queryParams.append('indent', 'true');
+            queryParams.append('facet', 'true');
+            queryParams.append('facet.pivot', `${columnField},${rowField}`);
+            queryParams.append('facet.sort', columnField);
+            queryParams.append('wt', 'json');
+
+            const apiUrl = `${baseUrl}?${queryParams.toString()}`;
+            document.getElementById('generatedUrl').textContent = apiUrl;
+            currentApiUrl = apiUrl;
+
+            baseQuery = criteria.main;
+            columnFieldName = columnField;
+            rowFieldName = rowField;
+            facetPivot = `${columnField},${rowField}`;
+
+            fetchData(apiUrl);
+        }
+
+        // Charger les données depuis l'API
+        async function fetchData(apiUrl) {
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                data = await response.json();
+                processData();
+                scrollToTable();
+            } catch (error) {
+                document.getElementById('error').textContent = `Erreur: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        function fetchDataFromInput() {
+            const url = document.getElementById('apiUrl').value.trim();
+            if (!url) {
+                document.getElementById('error').textContent = "Veuillez entrer une URL.";
+                return;
+            }
+
+            document.getElementById('error').textContent = "";
+            currentApiUrl = url;
+
+            extractBaseParameters(url);
+            fetchData(url);
+        }
+
+        function extractBaseParameters(url) {
+            try {
+                const urlObj = new URL(url);
+                const params = new URLSearchParams(urlObj.search);
+
+                baseQuery = params.get('q') || '';
+                facetPivot = params.get('facet.pivot') || '';
+                if (facetPivot) {
+                    const [colField, rowField] = facetPivot.split(',');
+                    columnFieldName = colField;
+                    rowFieldName = rowField;
+                }
+            } catch (e) {
+                console.error("Erreur lors de l'extraction des paramètres:", e);
+                baseQuery = '';
+                facetPivot = '';
+            }
+        }
+
+        function scrollToTable() {
+            const tableContainer = document.getElementById('tableContainer');
+            tableContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function createClickableCell(value, rowValue, colValue) {
+            const cell = document.createElement('td');
+
+            if (value === 0 || !value) {
+                cell.textContent = '0';
+                return cell;
+            }
+
+            const link = document.createElement('a');
+            link.textContent = value;
+            link.className = 'clickable';
+            link.href = '#';
+
+            const urlObj = new URL("https://api.archives-ouvertes.fr/search/");
+
+            if (baseQuery) {
+                urlObj.searchParams.append('q', baseQuery);
+            }
+
+            if (columnFieldName && colValue) {
+                const colNeedsQuotes = needsQuotes(columnFieldName);
+                urlObj.searchParams.append('fq', colNeedsQuotes ? `${columnFieldName}:"${colValue}"` : `${columnFieldName}:${colValue}`);
+            }
+            if (rowFieldName && rowValue) {
+                const rowNeedsQuotes = needsQuotes(rowFieldName);
+                urlObj.searchParams.append('fq', rowNeedsQuotes ? `${rowFieldName}:"${rowValue}"` : `${rowFieldName}:${rowValue}`);
+            }
+
+            urlObj.searchParams.append('rows', '1000');
+
+            link.onclick = function(e) {
+                e.preventDefault();
+                window.open(urlObj.toString(), '_blank');
+            };
+
+            cell.appendChild(link);
+            return cell;
+        }
+
+        function processData() {
+            const table = document.getElementById('dataTable');
+            const tbody = table.querySelector('tbody');
+            const tfoot = table.querySelector('tfoot');
+            const pivotFieldHeader = document.getElementById('pivotFieldHeader');
+            const fieldInfo = document.getElementById('fieldInfo');
+            const rowFieldInfo = document.getElementById('rowFieldInfo');
+            const columnFieldInfo = document.getElementById('columnFieldInfo');
+
+            tbody.innerHTML = '';
+            tfoot.innerHTML = '<tr><td colspan="2">Total (lignes sélectionnées)</td></tr>';
+            columns = [];
+            rows = [];
+            rowData = {};
+
+            const facetKey = Object.keys(data.facet_counts?.facet_pivot || {})[0];
+            if (!facetKey) {
+                document.getElementById('error').textContent = "Aucune donnée de facette trouvée.";
+                return;
+            }
+
+            if (!columnFieldName || !rowFieldName) {
+                const [colField, rowField] = facetKey.split(',');
+                columnFieldName = colField;
+                rowFieldName = rowField;
+            }
+
+            rowFieldInfo.textContent = rowFieldName;
+            columnFieldInfo.textContent = columnFieldName;
+            fieldInfo.style.display = 'block';
+
+            const facetData = data.facet_counts.facet_pivot[facetKey];
+
+            facetData.forEach(colEntry => {
+                const colValue = colEntry.value;
+                columns.push(colValue);
+
+                colEntry.pivot?.forEach(rowEntry => {
+                    const rowValue = rowEntry.value;
+                    if (!rows.includes(rowValue)) rows.push(rowValue);
+                    if (!rowData[rowValue]) rowData[rowValue] = {};
+                    rowData[rowValue][colValue] = parseInt(rowEntry.count) || 0;
+                });
+            });
+
+            columns.sort((a, b) => {
+                const numA = parseFloat(a);
+                const numB = parseFloat(b);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return a.localeCompare(b);
+            });
+
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = '<th>Sélection</th><th class="row-header">' + rowFieldName + '</th>';
+
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                th.className = "column-header";
+                headerRow.appendChild(th);
+            });
+
+            table.querySelector('thead').innerHTML = '';
+            table.querySelector('thead').appendChild(headerRow);
+
+            const totalRow = document.createElement('tr');
+            totalRow.innerHTML = '<td colspan="2">Total (lignes sélectionnées)</td>';
+            columns.forEach(col => {
+                const td = document.createElement('td');
+                td.id = `total-${col}`;
+                td.textContent = '0';
+                totalRow.appendChild(td);
+            });
+            tfoot.appendChild(totalRow);
+
+            rows.sort().forEach(row => {
+                const tr = document.createElement('tr');
+
+                const tdCheckbox = document.createElement('td');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `row-${row}`;
+                checkbox.onchange = updateTotals;
+                tdCheckbox.appendChild(checkbox);
+                tr.appendChild(tdCheckbox);
+
+                const tdRow = document.createElement('td');
+                tdRow.textContent = row;
+                tdRow.className = "row-header";
+                tr.appendChild(tdRow);
+
+                columns.forEach(col => {
+                    const value = rowData[row][col] || 0;
+                    const td = createClickableCell(value, row, col);
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateTotals() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+
+            columns.forEach(col => {
+                document.getElementById(`total-${col}`).textContent = '0';
+            });
+
+            checkboxes.forEach(checkbox => {
+                const row = checkbox.id.replace('row-', '');
+                columns.forEach(col => {
+                    const value = rowData[row][col] || 0;
+                    const totalCell = document.getElementById(`total-${col}`);
+                    const currentTotal = parseInt(totalCell.textContent) || 0;
+                    totalCell.textContent = currentTotal + value;
+                });
+            });
+        }
+
+        function selectAll(select) {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = select;
+            });
+            updateTotals();
+        }
+
+        function exportToCSV() {
+            if (rows.length === 0) {
+                alert("Aucune donnée à exporter. Veuillez d'abord charger des données.");
+                return;
+            }
+
+            let csvContent = "";
+            const headerRow = ["Type", ...columns];
+            csvContent += headerRow.join(";") + "\r\n";
+
+            rows.sort().forEach(row => {
+                const rowDataArray = [row, ...columns.map(col => rowData[row][col] || 0)];
+                csvContent += rowDataArray.join(";") + "\r\n";
+            });
+
+            const totalRow = ["Total"];
+            columns.forEach(col => {
+                const totalCell = document.getElementById(`total-${col}`);
+                totalRow.push(totalCell ? totalCell.textContent : '0');
+            });
+            csvContent += totalRow.join(";") + "\r\n";
+
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", "données_exportées.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Variables globales
+        let data = {};
+        let columns = [];
+        let rows = [];
+        let rowData = {};
+        let rowFieldName = "";
+        let columnFieldName = "";
+        let currentApiUrl = "";
+        let baseQuery = "";
+        let facetPivot = "";
+
+        // Appeler la fonction pour remplir les menus déroulants au chargement de la page
+        window.onload = function() {
+            populateQueryFieldDropdowns();
+        };
+    </script>
+</body>
+</html>
