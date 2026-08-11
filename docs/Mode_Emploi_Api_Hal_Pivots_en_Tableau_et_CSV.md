@@ -14,6 +14,9 @@ L’API comporte 2 parties :
 On obtient un tableau qui montre, pour chaque type de document le nombre de dépôts présents dans le portail hal chaque année entre 2023 et 2026.
 <img width="719" height="207" alt="image" src="https://github.com/user-attachments/assets/2514b396-9f49-423a-9f3f-a80f7e9b7ba4" />
 
+_Nombre de dépôts de type "Article" ou "Communication dans un congrès" entre 2023 et 2026_
+
+
 ## Comment utiliser le formulaire ?
 
 Deux méthodes possibles : copier une API déjà construite (A) ou la construire à l'aide du formulaire (B).
