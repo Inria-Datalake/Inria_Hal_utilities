@@ -24,6 +24,7 @@ Deux méthodes possibles : copier une API déjà construite (A) ou la construire
 ### A. Saisir l’url de l’API complète
 Coller une API déjà construite, par exemple : 
 Par exemple : https://api.archives-ouvertes.fr/search/?q=instance_s%3Ahal&fq=publicationDateY_i%3A%5B2023+TO+2026%5D&fq=docType_s%3A%28ART+OR+COMM%29&rows=0&indent=true&facet=true&facet.pivot=publicationDateY_i%2CdocType_s&facet.sort=publicationDateY_i&wt=json
+Recopier cette URL dans la boîte de saisie comme ci-dessous
 <img width="1802" height="120" alt="image" src="https://github.com/user-attachments/assets/4e2c43d5-7f8e-4afe-b99c-dad6c5dad57f" />
 
 Cliquer sur "Charger les données"
