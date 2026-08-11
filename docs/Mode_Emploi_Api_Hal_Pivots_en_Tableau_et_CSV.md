@@ -29,7 +29,7 @@ Recopier cette URL dans la boîte de saisie comme ci-dessous
 
 Cliquer sur "Charger les données"
 
-### B. Construire la requête et définir les pivots
+### B. Ou bien Construire la requête et définir les pivots
 1. Définir les critères de recherche (4 maximum)
 - Un Critère principal et trois critères optionnels (filtres) sont proposés avec un liste par défaut pour trois sur quatre.
 - Le quatrième critère optionnel « Champ personnalisé » est un champ de votre choix dans la liste proposée par l’API (https://api.archives-ouvertes.fr/docs/search/?schema=fields#fields). S’il est le seul critère renseigné, il sera le critère principal de l’API q=)
